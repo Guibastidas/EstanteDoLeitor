@@ -225,9 +225,34 @@ def calculate_status(read_issues: int, total_issues: int) -> str:
         return "lendo"
 
 
-def series_to_response(series: SeriesDB) -> dict:
-    """Converter SeriesDB para resposta da API"""
-    status = calculate_status(series.read_issues, series.total_issues)
+def series_to_response(series: SeriesDB, db: Session = None) -> dict:
+    """Converter SeriesDB para resposta da API
+    
+    IMPORTANTE: Recalcula os contadores baseado nas issues reais
+    para garantir que sempre estejam corretos
+    """
+    # Se db foi fornecido, recalcular contadores REAIS
+    if db:
+        from sqlalchemy import func
+        
+        # Contar issues reais
+        counts = db.query(
+            func.count(IssueDB.id).label('downloaded'),
+            func.sum(func.cast(IssueDB.is_read, Integer)).label('read')
+        ).filter(IssueDB.series_id == series.id).first()
+        
+        downloaded_real = counts.downloaded or 0
+        read_real = counts.read or 0
+        
+        # Atualizar no objeto (mas NÃO no banco ainda - só na resposta)
+        read_issues = read_real
+        downloaded_issues = downloaded_real
+    else:
+        # Sem db, usar valores do banco
+        read_issues = series.read_issues
+        downloaded_issues = series.downloaded_issues
+    
+    status = calculate_status(read_issues, series.total_issues)
     
     return {
         "id": series.id,
@@ -235,8 +260,8 @@ def series_to_response(series: SeriesDB) -> dict:
         "author": series.author,
         "publisher": series.publisher,
         "total_issues": series.total_issues,
-        "downloaded_issues": series.downloaded_issues,
-        "read_issues": series.read_issues,
+        "downloaded_issues": downloaded_issues,  # ← RECALCULADO
+        "read_issues": read_issues,  # ← RECALCULADO
         "is_completed": series.is_completed,
         "series_type": series.series_type,
         "cover_url": series.cover_url,
@@ -332,7 +357,7 @@ async def list_series(
         # Converter para resposta
         result = []
         for series in series_list:
-            series_dict = series_to_response(series)
+            series_dict = series_to_response(series, db)  # ← PASSAR DB para recalcular
             
             # Filtro de status (após cálculo)
             if status and series_dict["status"] != status:
@@ -356,7 +381,7 @@ async def get_series(series_id: int, db: Session = Depends(get_db)):
         if not series:
             raise HTTPException(status_code=404, detail="Série não encontrada")
         
-        return series_to_response(series)
+        return series_to_response(series, db)  # ← PASSAR DB para recalcular
         
     except HTTPException:
         raise
@@ -388,7 +413,7 @@ async def create_series(series: SeriesCreate, db: Session = Depends(get_db)):
         db.commit()
         db.refresh(db_series)
         
-        return series_to_response(db_series)
+        return series_to_response(db_series, db)  # ← PASSAR DB
         
     except Exception as e:
         db.rollback()
@@ -421,7 +446,7 @@ async def update_series(series_id: int, series: SeriesUpdate, db: Session = Depe
         db.commit()
         db.refresh(db_series)
         
-        return series_to_response(db_series)
+        return series_to_response(db_series, db)  # ← PASSAR DB
         
     except HTTPException:
         raise
