@@ -6,19 +6,12 @@ let currentFilter = 'all';
 let currentSeriesId = null;
 let allSeries = [];
 let searchTimeout = null;
+let currentSeries = null;
 
 // Initialize app
 document.addEventListener('DOMContentLoaded', () => {
     console.log('🚀 Iniciando aplicação...');
     console.log('📡 API URL:', API_URL);
-    
-    // Adicionar listener aos botões para debug
-    const btnNova = document.querySelector('.btn-primary');
-    if (btnNova) {
-        console.log('✅ Botão "Nova HQ" encontrado');
-    } else {
-        console.error('❌ Botão "Nova HQ" NÃO encontrado!');
-    }
     
     loadSeries();
     loadStats();
@@ -99,25 +92,12 @@ async function loadStats() {
         
         console.log('📊 Estatísticas recebidas:', stats);
         
-        // Atualizar com verificação
-        const totalEl = document.getElementById('stat-total');
-        const paraLerEl = document.getElementById('stat-para-ler');
-        const lendoEl = document.getElementById('stat-lendo');
-        const concluidasEl = document.getElementById('stat-concluidas');
-        
-        if (totalEl) totalEl.textContent = stats.total || 0;
-        if (paraLerEl) paraLerEl.textContent = stats.para_ler || 0;
-        if (lendoEl) lendoEl.textContent = stats.lendo || 0;
-        if (concluidasEl) concluidasEl.textContent = stats.concluida || 0;
-        
-        console.log('✅ Estatísticas atualizadas:');
-        console.log('   Total:', stats.total);
-        console.log('   Para Ler:', stats.para_ler);
-        console.log('   Lendo:', stats.lendo);
-        console.log('   Concluídas:', stats.concluida);
+        document.getElementById('stat-total').textContent = stats.total || 0;
+        document.getElementById('stat-para-ler').textContent = stats.para_ler || 0;
+        document.getElementById('stat-lendo').textContent = stats.lendo || 0;
+        document.getElementById('stat-concluidas').textContent = stats.concluidas || 0;
     } catch (error) {
-        console.error('❌ Error loading stats:', error);
-        // Não mostrar erro pro usuário, apenas no console
+        console.error('Error loading stats:', error);
     }
 }
 
@@ -126,22 +106,29 @@ function displaySeries() {
     const grid = document.getElementById('series-grid');
     const emptyState = document.getElementById('empty-state');
     
-    // Filter series
-    let filtered = allSeries;
-    if (currentFilter !== 'all') {
-        filtered = allSeries.filter(s => s.status === currentFilter);
+    // Filtrar séries
+    let filteredSeries = allSeries;
+    
+    if (currentFilter === 'para_ler') {
+        filteredSeries = allSeries.filter(s => s.read_issues === 0);
+    } else if (currentFilter === 'lendo') {
+        filteredSeries = allSeries.filter(s => s.read_issues > 0 && s.read_issues < s.total_issues);
+    } else if (currentFilter === 'concluida') {
+        filteredSeries = allSeries.filter(s => s.read_issues >= s.total_issues && s.total_issues > 0);
     }
     
-    if (filtered.length === 0) {
-        grid.innerHTML = '';
-        emptyState.style.display = 'block';
+    console.log(`🔍 Filtro "${currentFilter}": ${filteredSeries.length} séries`);
+    
+    if (filteredSeries.length === 0) {
+        showEmptyState();
         return;
     }
     
     emptyState.style.display = 'none';
+    grid.style.display = 'grid';
     grid.innerHTML = '';
     
-    filtered.forEach(series => {
+    filteredSeries.forEach(series => {
         const card = createSeriesCard(series);
         grid.appendChild(card);
     });
@@ -150,203 +137,181 @@ function displaySeries() {
 function createSeriesCard(series) {
     const card = document.createElement('div');
     card.className = 'comic-card';
-    card.style.cursor = 'pointer';
+    card.onclick = () => showSeriesDetail(series.id);
     
-    const statusClass = `status-${series.status}`;
-    const statusText = getStatusText(series.status);
-    
-    const coverHTML = series.cover_url 
-        ? `<img src="${series.cover_url}" alt="${series.title}" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
-           <div class="comic-cover-placeholder" style="display:none;">📖</div>`
-        : `<div class="comic-cover-placeholder">📖</div>`;
-    
-    const progressPercent = series.total_issues > 0 
-        ? Math.min((series.read_issues / series.total_issues) * 100, 100) 
+    // Calcular progresso
+    const progress = series.total_issues > 0 
+        ? Math.round((series.read_issues / series.total_issues) * 100)
         : 0;
     
-    const progressClass = progressPercent === 100 ? 'completed' : 
-                          progressPercent === 0 ? 'not-started' : '';
+    // Status
+    let statusClass = 'para-ler';
+    let statusText = 'Para Ler';
     
-    const metaItems = [];
-    if (series.author) metaItems.push(`✏️ ${series.author}`);
-    if (series.publisher) metaItems.push(`📚 ${series.publisher}`);
-    
-    const metaHTML = metaItems.length > 0 
-        ? metaItems.map(item => `<div>${item}</div>`).join('')
-        : '';
-    
-    // Badge de tipo de série
-    const typeBadge = createSeriesTypeBadge(series.series_type || 'em_andamento');
+    if (series.read_issues >= series.total_issues && series.total_issues > 0) {
+        statusClass = 'concluida';
+        statusText = 'Concluída';
+    } else if (series.read_issues > 0) {
+        statusClass = 'lendo';
+        statusText = 'Lendo';
+    }
     
     card.innerHTML = `
-        <div class="comic-cover" onclick="goToDetail(${series.id})">
-            ${coverHTML}
-            <div class="series-type-overlay">
-                ${typeBadge}
-            </div>
+        <div class="comic-cover">
+            ${series.cover_url 
+                ? `<img src="${series.cover_url}" alt="${series.title}" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                   <div class="comic-cover-placeholder" style="display:none;">📖</div>`
+                : `<div class="comic-cover-placeholder">📖</div>`
+            }
         </div>
         <div class="comic-info">
+            <h3 class="comic-title">${series.title}</h3>
+            ${series.author ? `<p class="comic-author">${series.author}</p>` : ''}
+            ${createSeriesTypeBadge(series.series_type)}
             <div class="comic-progress">
-                <div class="progress-label">
-                    <span>Progresso</span>
-                    <span>${series.read_issues}/${series.total_issues} (${Math.round(progressPercent)}%)</span>
-                </div>
                 <div class="progress-bar-container">
-                    <div class="progress-bar ${progressClass}" style="width: ${progressPercent}%"></div>
+                    <div class="progress-bar" style="width: ${progress}%"></div>
                 </div>
+                <div class="progress-text">${series.read_issues}/${series.total_issues} (${progress}%)</div>
             </div>
-            <div class="comic-header" onclick="goToDetail(${series.id})">
-                <h3 class="comic-title">${series.title}</h3>
-                <div class="comic-meta">
-                    ${metaHTML}
-                </div>
-            </div>
-            <div class="series-stats-mini">
-                <div class="stat-mini">
-                    <span>Lendo:</span> <strong>${series.read_issues}</strong>
-                </div>
-                <div class="stat-mini">
-                    <span>Baixadas:</span> <strong>${series.downloaded_issues}</strong>
-                </div>
-                <div class="stat-mini">
-                    <span>Total:</span> <strong>${series.total_issues}</strong>
-                </div>
-            </div>
-            <div class="comic-status-row">
-                <span class="comic-status ${statusClass}">${statusText}</span>
-                <div class="comic-actions">
-                    <button class="btn-icon" onclick="event.stopPropagation(); editSeriesById(${series.id})" title="Editar">
-                        ✏️
-                    </button>
-                    <button class="btn-icon" onclick="event.stopPropagation(); deleteSeries(${series.id}, '${series.title.replace(/'/g, "\\'")}');" title="Deletar">
-                        🗑️
-                    </button>
-                </div>
-            </div>
+            <div class="comic-status ${statusClass}">${statusText}</div>
         </div>
     `;
     
     return card;
 }
 
-function getStatusText(status) {
-    const statusMap = {
-        'para_ler': 'Para Ler',
-        'lendo': 'Lendo',
-        'concluida': 'Concluída'
-    };
-    return statusMap[status] || status;
-}
-
 function showEmptyState() {
     const grid = document.getElementById('series-grid');
     const emptyState = document.getElementById('empty-state');
     
-    grid.innerHTML = '';
+    grid.style.display = 'none';
     emptyState.style.display = 'block';
 }
 
-// Navigation
-function goToHome() {
-    console.log('🏠 Voltando para home');
+// Filter Functions
+function filterSeries(filter) {
+    currentFilter = filter;
     
-    // Hide detail view
-    document.getElementById('detail-view').style.display = 'none';
-    document.getElementById('home-view').style.display = 'block';
+    // Update active tab
+    document.querySelectorAll('.filter-tab').forEach(tab => {
+        tab.classList.remove('active');
+        if (tab.dataset.filter === filter) {
+            tab.classList.add('active');
+        }
+    });
     
-    // Show stats and filters
-    document.getElementById('stats-section').style.display = 'block';
-    document.getElementById('filters-section').style.display = 'block';
-    
-    // Hide back button
-    document.getElementById('btn-back').style.display = 'none';
-    
-    // Reload series
-    currentSeriesId = null;
-    loadSeries();
-    loadStats();
+    displaySeries();
 }
 
-async function goToDetail(seriesId) {
-    console.log('📖 Abrindo detalhes da série:', seriesId);
+// Search
+function handleSearch() {
+    clearTimeout(searchTimeout);
+    const searchInput = document.getElementById('search-input');
+    const query = searchInput.value.trim();
+    
+    // Mostrar/esconder botão de limpar
+    const clearBtn = document.getElementById('search-clear');
+    if (query) {
+        clearBtn.style.display = 'block';
+    } else {
+        clearBtn.style.display = 'none';
+    }
+    
+    // Debounce
+    searchTimeout = setTimeout(() => {
+        loadSeries(query);
+    }, 300);
+}
+
+function clearSearch() {
+    const searchInput = document.getElementById('search-input');
+    searchInput.value = '';
+    document.getElementById('search-clear').style.display = 'none';
+    loadSeries();
+}
+
+// Series Detail
+async function showSeriesDetail(seriesId) {
     currentSeriesId = seriesId;
-    
-    // Hide home view
-    document.getElementById('home-view').style.display = 'none';
-    document.getElementById('detail-view').style.display = 'block';
-    
-    // Hide stats and filters
-    document.getElementById('stats-section').style.display = 'none';
-    document.getElementById('filters-section').style.display = 'none';
-    
-    // Show back button
-    document.getElementById('btn-back').style.display = 'block';
-    
-    // Load series detail
     await loadSeriesDetail(seriesId);
 }
 
 async function loadSeriesDetail(seriesId) {
     try {
-        console.log('📥 Carregando detalhes da série:', seriesId);
-        const series = await fetchAPI(`/series/${seriesId}`);
-        const issues = await fetchAPI(`/series/${seriesId}/issues`);
+        console.log('📖 Carregando detalhes da série:', seriesId);
         
-        console.log('✅ Série carregada:', series);
-        console.log('✅ Edições carregadas:', issues.length);
+        const [series, issues] = await Promise.all([
+            fetchAPI(`/series/${seriesId}`),
+            fetchAPI(`/series/${seriesId}/issues`)
+        ]);
         
-        // Título
-        const typeInfo = getSeriesTypeLabel(series.series_type || 'em_andamento');
-        const titleElement = document.getElementById('detail-title');
-        titleElement.innerHTML = `
-            ${series.title}
-            <span class="series-type-badge ${typeInfo.class}" style="margin-left: 10px; font-size: 0.5em; vertical-align: middle;">
-                ${typeInfo.emoji} ${typeInfo.text}
-            </span>
-        `;
+        currentSeries = series;
         
-        // Autor e editora
-        document.getElementById('detail-author').textContent = series.author ? `✏️ ${series.author}` : '';
-        document.getElementById('detail-publisher').textContent = series.publisher ? `📚 ${series.publisher}` : '';
+        // CONFIGURAÇÃO DE EXCEÇÕES - Edições antigas que você NÃO leu inicialmente
+        const excecoesLeitura = {
+            'asa noturna': 121,
+            'nightwing': 121,
+            'action comics': 1075,
+            'detective comics': 1090
+        };
         
-        // Capa
-        const coverImg = document.getElementById('detail-cover');
-        const coverPlaceholder = coverImg.nextElementSibling;
-        
-        if (series.cover_url) {
-            coverImg.src = series.cover_url;
-            coverImg.style.display = 'block';
-            coverPlaceholder.style.display = 'none';
-        } else {
-            coverImg.style.display = 'none';
-            coverPlaceholder.style.display = 'flex';
+        // Verificar se a série tem exceção
+        let edicaoMinimaLida = 1;
+        for (const [nomeSerie, edicaoMinima] of Object.entries(excecoesLeitura)) {
+            if (series.title.toLowerCase().includes(nomeSerie)) {
+                edicaoMinimaLida = edicaoMinima;
+                console.log(`⚠️ EXCEÇÃO: ${series.title} - Mostrando progresso a partir da #${edicaoMinima}`);
+                break;
+            }
         }
         
-        // CORREÇÃO: Calcular estatísticas corretas
-        const totalPublicado = series.total_issues || 0;  // Quantas edições foram publicadas
-        const totalBaixado = issues.length;  // Quantas edições você tem no sistema
-        const totalLido = issues.filter(i => i.is_read).length;  // Quantas você leu
+        // Calcular progresso considerando APENAS as edições LIDAS
+        const totalLidas = issues.filter(i => i.is_read).length;
+        const totalBaixado = issues.length;
+        const totalPublicado = series.total_issues;
         
-        // Progresso baseado em lidas vs publicadas
         const progressPercent = totalPublicado > 0 
-            ? Math.min((totalLido / totalPublicado) * 100, 100) 
+            ? Math.round((totalLidas / totalPublicado) * 100)
             : 0;
         
-        document.getElementById('detail-progress').textContent = 
-            `${totalLido}/${totalPublicado} edições (${Math.round(progressPercent)}%)`;
+        console.log('📊 Progresso:', {
+            lidas: totalLidas,
+            baixadas: totalBaixado,
+            publicadas: totalPublicado,
+            percentual: progressPercent
+        });
+        
+        // Atualizar UI
+        document.getElementById('detail-cover').src = series.cover_url || '';
+        document.getElementById('detail-title').textContent = series.title;
+        document.getElementById('detail-author').textContent = series.author ? `✍️ ${series.author}` : '';
+        document.getElementById('detail-publisher').textContent = series.publisher ? `📚 ${series.publisher}` : '';
+        
+        // Progresso
+        let progressText = `${totalLidas}/${totalPublicado} edições (${progressPercent}%)`;
+        if (edicaoMinimaLida > 1) {
+            progressText += ` - Contando todas as edições lidas`;
+        }
+        document.getElementById('detail-progress').textContent = progressText;
         document.getElementById('detail-progress-bar').style.width = `${progressPercent}%`;
         
-        // Stats corrigidas
-        document.getElementById('detail-reading').textContent = totalLido;  // Quantas você leu
-        document.getElementById('detail-downloaded').textContent = totalBaixado;  // Quantas você tem (issues criados)
-        document.getElementById('detail-total').textContent = totalPublicado;  // Quantas foram publicadas
+        document.getElementById('detail-reading').textContent = totalLidas;
+        document.getElementById('detail-downloaded').textContent = totalBaixado;
+        document.getElementById('detail-total').textContent = totalPublicado;
         
-        // Edições com sistema de cores
+        // Mostrar detail view
+        document.getElementById('home-view').style.display = 'none';
+        document.getElementById('detail-view').style.display = 'block';
+        document.getElementById('stats-section').style.display = 'none';
+        document.getElementById('filters-section').style.display = 'none';
+        document.getElementById('btn-back').style.display = 'inline-block';
+        document.getElementById('header-actions').style.display = 'none';
+        
         displayIssues(issues, totalBaixado, totalPublicado);
     } catch (error) {
         console.error('Error loading series detail:', error);
-        alert('Erro ao carregar detalhes da série.');
-        goToHome();
+        alert('Erro ao carregar detalhes da série');
     }
 }
 
@@ -357,7 +322,6 @@ function displayIssues(issues, totalBaixado, totalPublicado) {
     console.log('📖 Exibindo edições');
     console.log('📊 Total baixado:', totalBaixado, '| Total publicado:', totalPublicado);
     
-    // Se não tem total publicado, mostrar empty state
     if (!totalPublicado || totalPublicado === 0) {
         issuesList.innerHTML = '';
         emptyIssues.style.display = 'block';
@@ -367,50 +331,93 @@ function displayIssues(issues, totalBaixado, totalPublicado) {
     emptyIssues.style.display = 'none';
     issuesList.innerHTML = '';
     
-    // Criar um Set com os números das edições que existem
-    const existingNumbers = new Set((issues || []).map(i => i.issue_number));
+    // CONFIGURAÇÃO DE EXCEÇÕES
+    const serieAtual = allSeries.find(s => s.id === currentSeriesId);
+    const nomeSerieAtual = serieAtual ? serieAtual.title.toLowerCase() : '';
     
-    // Criar todas as edições (existentes + faltantes) até total_issues
+    const excecoesLeitura = {
+        'asa noturna': 121,
+        'nightwing': 121,
+        'action comics': 1075,
+        'detective comics': 1090
+    };
+    
+    let edicaoMinimaLida = 1;
+    for (const [nomeSerie, edicaoMinima] of Object.entries(excecoesLeitura)) {
+        if (nomeSerieAtual.includes(nomeSerie)) {
+            edicaoMinimaLida = edicaoMinima;
+            console.log(`⚠️ EXCEÇÃO detectada: ${nomeSerieAtual} - Edições antes da #${edicaoMinima} aparecem em vermelho por padrão`);
+            break;
+        }
+    }
+    
+    // Criar todas as edições até o total publicado
     const allIssueCards = [];
     
-    // Adicionar todas as edições até o total publicado
     for (let numero = 1; numero <= totalPublicado; numero++) {
         const issue = (issues || []).find(i => i.issue_number === numero);
         
         const issueCard = document.createElement('div');
         
-        // SISTEMA DE CORES:
-        // 🟢 Verde = Lida (is_read = true) - classe 'read'
-        // 🟡 Amarelo/Branco = Baixada mas não lida (existe no sistema, is_read = false) - sem classe extra
-        // 🔴 Vermelho = Não baixada (não existe no sistema) - classe 'issue-faltante'
+        // 🎨 SISTEMA DE CORES:
+        // 🟢 VERDE = Lida (is_read = true)
+        // 🟡 AMARELO = Baixada mas não lida (existe no sistema, is_read = false)
+        // 🔴 VERMELHO = Não baixada (não existe) OU edição antiga não lida
         
         let colorClass = '';
         let titleText = '';
         let actionsHTML = '';
         
         if (issue) {
-            // Edição existe no sistema
+            // Edição EXISTE no sistema
             if (issue.is_read) {
-                colorClass = 'read';  // Verde - usa a classe CSS existente
+                // 🟢 LIDA = VERDE
+                colorClass = 'read';
                 titleText = `Edição #${numero}`;
+                actionsHTML = `
+                    <label class="checkbox-icon" title="Marcar como não lida">
+                        <input type="checkbox" checked onchange="toggleIssueRead(${issue.id}, this.checked)">
+                        <span class="checkmark">✓</span>
+                    </label>
+                    <button class="btn-icon btn-delete" onclick="deleteIssue(${issue.id}, ${numero})" title="Deletar edição">
+                        🗑️
+                    </button>
+                `;
+            } else if (numero < edicaoMinimaLida) {
+                // 🔴 Edição antiga NÃO lida = VERMELHO (mas pode marcar como lida!)
+                colorClass = 'issue-faltante';
+                titleText = `Edição #${numero} - Não lida (anterior ao início)`;
+                actionsHTML = `
+                    <label class="checkbox-icon" title="Marcar como lida">
+                        <input type="checkbox" onchange="toggleIssueRead(${issue.id}, this.checked)">
+                        <span class="checkmark"></span>
+                    </label>
+                    <button class="btn-icon btn-delete" onclick="deleteIssue(${issue.id}, ${numero})" title="Deletar edição">
+                        🗑️
+                    </button>
+                `;
             } else {
-                colorClass = '';  // Card padrão (branco/sem classe especial)
+                // 🟡 AMARELO = Baixada mas NÃO lida
+                colorClass = 'issue-baixada';
                 titleText = `Edição #${numero}`;
+                actionsHTML = `
+                    <label class="checkbox-icon" title="Marcar como lida">
+                        <input type="checkbox" onchange="toggleIssueRead(${issue.id}, this.checked)">
+                        <span class="checkmark"></span>
+                    </label>
+                    <button class="btn-icon btn-delete" onclick="deleteIssue(${issue.id}, ${numero})" title="Deletar edição">
+                        🗑️
+                    </button>
+                `;
             }
-            
-            actionsHTML = `
-                <label class="checkbox-icon" title="${issue.is_read ? 'Marcar como não lida' : 'Marcar como lida'}">
-                    <input type="checkbox" ${issue.is_read ? 'checked' : ''} onchange="toggleIssueRead(${issue.id}, this.checked)">
-                    <span class="checkmark">${issue.is_read ? '✓' : ''}</span>
-                </label>
-                <button class="btn-icon btn-delete" onclick="deleteIssue(${issue.id}, ${numero})" title="Deletar edição">
-                    🗑️
-                </button>
-            `;
         } else {
-            // Edição NÃO existe no sistema (falta baixar)
-            colorClass = 'issue-faltante';  // Vermelho - usa a classe CSS existente
-            titleText = `Edição #${numero} - Não baixada`;
+            // 🔴 Edição NÃO existe no sistema = VERMELHO
+            colorClass = 'issue-faltante';
+            if (numero < edicaoMinimaLida) {
+                titleText = `Edição #${numero} - Não baixada (anterior)`;
+            } else {
+                titleText = `Edição #${numero} - Não baixada`;
+            }
             actionsHTML = `
                 <button class="btn-icon btn-add-quick" onclick="adicionarEdicaoRapida(${numero})" title="Adicionar esta edição">
                     ➕
@@ -434,7 +441,6 @@ function displayIssues(issues, totalBaixado, totalPublicado) {
         allIssueCards.push(issueCard);
     }
     
-    // Adicionar todos os cards ao DOM
     allIssueCards.forEach(card => issuesList.appendChild(card));
 }
 
@@ -454,16 +460,13 @@ async function adicionarEdicaoRapida(numero) {
         console.log(`✅ Edição #${numero} adicionada!`);
         loadSeriesDetail(currentSeriesId);
         loadStats();
-        loadSeries();  // ← CORREÇÃO: Recarregar lista para atualizar contadores
+        loadSeries();
     } catch (error) {
         console.error('Error adding issue:', error);
         alert('Erro ao adicionar edição: ' + error.message);
     }
 }
 
-/**
- * Sincronizar edições automaticamente com base no total_issues
- */
 async function sincronizarEdicoesAutomaticamente() {
     if (!currentSeriesId) return;
     
@@ -472,288 +475,257 @@ async function sincronizarEdicoesAutomaticamente() {
     btnSync.innerHTML = '⏳ Sincronizando...';
     
     try {
-        // Buscar dados da série atual
-        const serieResponse = await fetch(`${API_URL}/series/${currentSeriesId}`);
-        const serie = await serieResponse.json();
+        const series = await fetchAPI(`/series/${currentSeriesId}`);
+        const existingIssues = await fetchAPI(`/series/${currentSeriesId}/issues`);
         
-        if (!serie.total_issues || serie.total_issues <= 0) {
-            alert('Esta série não tem um total de edições definido.');
-            return;
-        }
+        const totalPublicado = series.total_issues;
+        const existingNumbers = new Set(existingIssues.map(i => i.issue_number));
         
-        // Buscar edições existentes
-        const issuesResponse = await fetch(`${API_URL}/series/${currentSeriesId}/issues`);
-        const existingIssues = await issuesResponse.json();
+        console.log(`📊 Total publicado: ${totalPublicado}`);
+        console.log(`📊 Edições existentes: ${existingNumbers.size}`);
         
-        // Encontrar edições faltantes
-        const existingNumbers = new Set(existingIssues.map(i => parseInt(i.issue_number)));
-        const faltantes = [];
-        
-        for (let numero = 1; numero <= serie.total_issues; numero++) {
-            if (!existingNumbers.has(numero)) {
-                faltantes.push(numero);
+        const missingIssues = [];
+        for (let i = 1; i <= totalPublicado; i++) {
+            if (!existingNumbers.has(i)) {
+                missingIssues.push(i);
             }
         }
         
-        if (faltantes.length === 0) {
-            alert('✅ Todas as edições já estão cadastradas!');
+        if (missingIssues.length === 0) {
+            alert('✅ Todas as edições já estão sincronizadas!');
+            btnSync.disabled = false;
+            btnSync.innerHTML = '🔄 Sincronizar Edições';
             return;
         }
         
-        // Confirmar com o usuário
-        const confirmacao = confirm(
-            `Serão adicionadas ${faltantes.length} edições faltantes:\n\n` +
-            `Edições: ${faltantes.slice(0, 10).join(', ')}${faltantes.length > 10 ? '...' : ''}\n\n` +
-            `Continuar?`
-        );
+        console.log(`🔄 Adicionando ${missingIssues.length} edições faltantes...`);
         
-        if (!confirmacao) return;
-        
-        // Adicionar edições faltantes
         let adicionadas = 0;
-        for (const numero of faltantes) {
-            const response = await fetch(`${API_URL}/series/${currentSeriesId}/issues`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    issue_number: numero,
-                    is_read: false,
-                }),
-            });
-            
-            if (response.ok) {
+        for (const numero of missingIssues) {
+            try {
+                await fetchAPI(`/series/${currentSeriesId}/issues`, {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        issue_number: numero,
+                        is_read: false
+                    })
+                });
                 adicionadas++;
+            } catch (error) {
+                console.error(`❌ Erro ao adicionar edição #${numero}:`, error);
             }
-            
-            await new Promise(r => setTimeout(r, 50));
         }
         
-        alert(`✅ ${adicionadas} edições adicionadas com sucesso!`);
+        console.log(`✅ ${adicionadas} edições adicionadas com sucesso!`);
         
-        // Recarregar a página
-        window.location.reload();
+        await loadSeriesDetail(currentSeriesId);
+        await loadStats();
+        await loadSeries();
+        
+        alert(`✅ Sincronização completa!\n${adicionadas} edições adicionadas.`);
         
     } catch (error) {
-        console.error('Erro ao sincronizar:', error);
-        alert('❌ Erro ao sincronizar edições.');
+        console.error('Erro na sincronização:', error);
+        alert('❌ Erro ao sincronizar edições: ' + error.message);
     } finally {
         btnSync.disabled = false;
         btnSync.innerHTML = '🔄 Sincronizar Edições';
     }
 }
 
-// Filter
-function filterSeries(filter) {
-    console.log('🔍 Filtrando por:', filter);
-    currentFilter = filter;
-    
-    // Update active tab
-    document.querySelectorAll('.filter-tab').forEach(tab => {
-        tab.classList.remove('active');
-        if (tab.dataset.filter === filter) {
-            tab.classList.add('active');
-        }
-    });
-    
-    displaySeries();
-}
-
-// Search
-function handleSearch() {
-    const searchInput = document.getElementById('search-input');
-    const searchClear = document.getElementById('search-clear');
-    const query = searchInput.value.trim();
-    
-    // Show/hide clear button
-    searchClear.style.display = query ? 'block' : 'none';
-    
-    // Debounce search
-    clearTimeout(searchTimeout);
-    searchTimeout = setTimeout(() => {
-        console.log('🔍 Buscando:', query);
-        loadSeries(query);
-    }, 300);
-}
-
-function clearSearch() {
-    console.log('🔍 Limpando busca');
-    document.getElementById('search-input').value = '';
-    document.getElementById('search-clear').style.display = 'none';
-    loadSeries();
-}
-
-// Modal Functions
-function openModal() {
-    console.log('📝 Abrindo modal de série');
-    const modal = document.getElementById('series-modal');
-    if (!modal) {
-        console.error('❌ Modal não encontrado!');
-        return;
-    }
-    modal.classList.add('show');
-    document.getElementById('series-form').reset();
-    document.getElementById('series-id').value = '';
-    document.getElementById('modal-title').textContent = 'Nova HQ';
-}
-
-function closeModal() {
-    console.log('❌ Fechando modal de série');
-    document.getElementById('series-modal').classList.remove('show');
-}
-
-function openAddIssueModal() {
-    // NOVO COMPORTAMENTO: Aumentar total_issues da série
-    if (!currentSeriesId) {
-        console.error('❌ Nenhuma série selecionada!');
-        return;
-    }
-    
-    const totalAtual = parseInt(document.getElementById('detail-total').textContent);
-    const novoTotal = totalAtual + 1;
-    
-    if (confirm(`Aumentar o total de edições de ${totalAtual} para ${novoTotal}?`)) {
-        aumentarTotalIssues(novoTotal);
-    }
-}
-
-async function aumentarTotalIssues(novoTotal) {
+async function verificarSincronizacaoLendo() {
     if (!currentSeriesId) return;
     
     try {
-        console.log(`📈 Aumentando total_issues para ${novoTotal}`);
+        const [series, issues] = await Promise.all([
+            fetchAPI(`/series/${currentSeriesId}`),
+            fetchAPI(`/series/${currentSeriesId}/issues`)
+        ]);
         
-        // Buscar série atual
-        const series = await fetchAPI(`/series/${currentSeriesId}`);
+        const readIssuesReal = issues.filter(i => i.is_read).length;
+        const readIssuesRegistrado = series.read_issues;
         
-        // Atualizar total_issues
-        await fetchAPI(`/series/${currentSeriesId}`, {
-            method: 'PUT',
-            body: JSON.stringify({
-                ...series,
-                total_issues: novoTotal
-            })
+        console.log('🔍 Verificação:', {
+            'Registrado no banco': readIssuesRegistrado,
+            'Real (contando edições)': readIssuesReal,
+            'Diferença': readIssuesReal - readIssuesRegistrado
         });
         
-        console.log('✅ Total atualizado!');
+        if (readIssuesReal === readIssuesRegistrado) {
+            alert(`✅ Tudo certo!\n\nEdições lidas registradas: ${readIssuesRegistrado}\nEdições realmente lidas: ${readIssuesReal}\n\nOs valores estão sincronizados!`);
+        } else {
+            const diferenca = readIssuesReal - readIssuesRegistrado;
+            alert(`⚠️ Desincronizado!\n\nEdições lidas registradas: ${readIssuesRegistrado}\nEdições realmente lidas: ${readIssuesReal}\nDiferença: ${diferenca > 0 ? '+' : ''}${diferenca}`);
+        }
         
-        // Recarregar
+    } catch (error) {
+        console.error('Erro ao verificar:', error);
+        alert('Erro ao verificar sincronização: ' + error.message);
+    }
+}
+
+function goToHome() {
+    currentSeriesId = null;
+    document.getElementById('home-view').style.display = 'block';
+    document.getElementById('detail-view').style.display = 'none';
+    document.getElementById('stats-section').style.display = 'block';
+    document.getElementById('filters-section').style.display = 'block';
+    document.getElementById('btn-back').style.display = 'none';
+    document.getElementById('header-actions').style.display = 'flex';
+    loadSeries();
+    loadStats();
+}
+
+// Toggle issue read status
+async function toggleIssueRead(issueId, isRead) {
+    try {
+        await fetchAPI(`/series/${currentSeriesId}/issues/${issueId}`, {
+            method: 'PATCH',
+            body: JSON.stringify({ is_read: isRead }),
+        });
+        
         loadSeriesDetail(currentSeriesId);
         loadStats();
         loadSeries();
     } catch (error) {
-        console.error('Error updating total:', error);
-        alert('Erro ao atualizar total de edições: ' + error.message);
+        console.error('Error updating issue:', error);
+        alert('Erro ao atualizar edição');
     }
 }
 
-function closeIssueModal() {
-    console.log('❌ Fechando modal de edição');
-    document.getElementById('issue-modal').classList.remove('show');
+// Delete issue
+async function deleteIssue(issueId, issueNumber) {
+    if (!confirm(`Tem certeza que deseja deletar a Edição #${issueNumber}?`)) {
+        return;
+    }
+    
+    try {
+        await fetchAPI(`/series/${currentSeriesId}/issues/${issueId}`, {
+            method: 'DELETE',
+        });
+        
+        loadSeriesDetail(currentSeriesId);
+        loadStats();
+        loadSeries();
+    } catch (error) {
+        console.error('Error deleting issue:', error);
+        alert('Erro ao deletar edição');
+    }
 }
 
-// Form Submissions
-async function submitSeriesForm(event) {
-    event.preventDefault();
+// Modal Functions
+function openModal(seriesId = null) {
+    console.log('🔓 Abrindo modal...', seriesId ? `(editar ID: ${seriesId})` : '(novo)');
     
-    console.log('💾 Salvando série...');
+    const modal = document.getElementById('series-modal');
+    const form = document.getElementById('series-form');
+    const title = document.getElementById('modal-title');
+    
+    form.reset();
+    
+    if (seriesId) {
+        title.textContent = 'Editar HQ';
+        const series = allSeries.find(s => s.id === seriesId);
+        if (series) {
+            document.getElementById('series-id').value = series.id;
+            document.getElementById('title').value = series.title;
+            document.getElementById('author').value = series.author || '';
+            document.getElementById('publisher').value = series.publisher || '';
+            document.getElementById('total_issues').value = series.total_issues || 0;
+            document.getElementById('series_type').value = series.series_type || 'em_andamento';
+            document.getElementById('is_completed').checked = series.is_completed || false;
+            document.getElementById('cover_url').value = series.cover_url || '';
+            document.getElementById('notes').value = series.notes || '';
+        }
+    } else {
+        title.textContent = 'Nova HQ';
+        document.getElementById('series-id').value = '';
+    }
+    
+    modal.classList.add('active');
+    console.log('✅ Modal aberto');
+}
+
+function closeModal() {
+    console.log('🔒 Fechando modal...');
+    const modal = document.getElementById('series-modal');
+    modal.classList.remove('active');
+}
+
+async function submitSeriesForm(e) {
+    e.preventDefault();
     
     const seriesId = document.getElementById('series-id').value;
-    const formData = {
+    const data = {
         title: document.getElementById('title').value,
         author: document.getElementById('author').value || null,
         publisher: document.getElementById('publisher').value || null,
         total_issues: parseInt(document.getElementById('total_issues').value) || 0,
-        // REMOVIDO: downloaded_issues e read_issues - serão calculados automaticamente pelo backend
-        is_completed: document.getElementById('is_completed').checked,
         series_type: document.getElementById('series_type').value,
+        is_completed: document.getElementById('is_completed').checked,
         cover_url: document.getElementById('cover_url').value || null,
         notes: document.getElementById('notes').value || null,
     };
     
     try {
-        let oldTotalIssues = 0;
-        let finalSeriesId = seriesId;
-        
-        // Se está editando, buscar o total_issues ANTIGO
         if (seriesId) {
-            console.log('📝 Atualizando série:', seriesId);
-            const oldSeries = await fetchAPI(`/series/${seriesId}`);
-            oldTotalIssues = oldSeries.total_issues || 0;
-            
             await fetchAPI(`/series/${seriesId}`, {
                 method: 'PUT',
-                body: JSON.stringify(formData),
+                body: JSON.stringify(data),
             });
         } else {
-            console.log('➕ Criando nova série');
-            const newSeries = await fetchAPI('/series', {
+            await fetchAPI('/series', {
                 method: 'POST',
-                body: JSON.stringify(formData),
+                body: JSON.stringify(data),
             });
-            finalSeriesId = newSeries.id;
-        }
-        
-        console.log('✅ Série salva!');
-        
-        // Se o total_issues aumentou, perguntar se quer adicionar as novas edições
-        if (finalSeriesId && formData.total_issues > oldTotalIssues) {
-            const diff = formData.total_issues - oldTotalIssues;
-            const adicionar = confirm(
-                `O total de edições aumentou de ${oldTotalIssues} para ${formData.total_issues}.\n\n` +
-                `Deseja adicionar automaticamente as ${diff} novas edições (#${oldTotalIssues + 1} até #${formData.total_issues})?`
-            );
-            
-            if (adicionar) {
-                console.log(`➕ Adicionando ${diff} novas edições...`);
-                
-                // Adicionar novas edições
-                for (let numero = oldTotalIssues + 1; numero <= formData.total_issues; numero++) {
-                    try {
-                        await fetchAPI(`/series/${finalSeriesId}/issues`, {
-                            method: 'POST',
-                            body: JSON.stringify({
-                                issue_number: numero,
-                                is_read: false,
-                            }),
-                        });
-                        console.log(`   ✅ Edição #${numero} adicionada`);
-                        
-                        // Delay pequeno para não sobrecarregar
-                        await new Promise(r => setTimeout(r, 50));
-                    } catch (error) {
-                        console.error(`   ❌ Erro ao adicionar edição #${numero}:`, error);
-                    }
-                }
-                
-                console.log(`✅ ${diff} novas edições adicionadas!`);
-            }
         }
         
         closeModal();
-        
-        if (currentSeriesId && finalSeriesId === currentSeriesId.toString()) {
-            loadSeriesDetail(currentSeriesId);
-        } else {
-            loadSeries();
-        }
+        loadSeries();
         loadStats();
     } catch (error) {
-        console.error('Error submitting form:', error);
+        console.error('Error saving series:', error);
         alert('Erro ao salvar HQ: ' + error.message);
     }
 }
 
-async function submitIssueForm(event) {
-    event.preventDefault();
-    
-    if (!currentSeriesId) {
-        console.error('❌ Nenhuma série selecionada!');
+// Delete series
+async function deleteSeries(seriesId) {
+    if (!confirm('Tem certeza que deseja deletar esta HQ? Esta ação não pode ser desfeita.')) {
         return;
     }
     
-    console.log('💾 Adicionando edição...');
+    try {
+        await fetchAPI(`/series/${seriesId}`, {
+            method: 'DELETE',
+        });
+        
+        goToHome();
+        loadSeries();
+        loadStats();
+    } catch (error) {
+        console.error('Error deleting series:', error);
+        alert('Erro ao deletar HQ');
+    }
+}
+
+// Issue Modal
+function openAddIssueModal() {
+    const modal = document.getElementById('issue-modal');
+    const form = document.getElementById('issue-form');
+    form.reset();
+    modal.classList.add('active');
+}
+
+function closeIssueModal() {
+    const modal = document.getElementById('issue-modal');
+    modal.classList.remove('active');
+}
+
+async function submitIssueForm(e) {
+    e.preventDefault();
     
-    const formData = {
+    const data = {
         issue_number: parseInt(document.getElementById('issue_number').value),
         is_read: document.getElementById('is_read').checked,
     };
@@ -761,365 +733,26 @@ async function submitIssueForm(event) {
     try {
         await fetchAPI(`/series/${currentSeriesId}/issues`, {
             method: 'POST',
-            body: JSON.stringify(formData),
+            body: JSON.stringify(data),
         });
         
-        console.log('✅ Edição adicionada!');
+        const series = await fetchAPI(`/series/${currentSeriesId}`);
+        if (data.issue_number > series.total_issues) {
+            await fetchAPI(`/series/${currentSeriesId}`, {
+                method: 'PUT',
+                body: JSON.stringify({
+                    ...series,
+                    total_issues: data.issue_number
+                }),
+            });
+        }
+        
         closeIssueModal();
         loadSeriesDetail(currentSeriesId);
         loadStats();
-        loadSeries();  // ← CORREÇÃO: Recarregar lista para atualizar contadores
+        loadSeries();
     } catch (error) {
         console.error('Error adding issue:', error);
         alert('Erro ao adicionar edição: ' + error.message);
-    }
-}
-
-// Edit/Delete Functions
-async function editSeriesById(seriesId) {
-    try {
-        console.log('✏️ Editando série:', seriesId);
-        const series = await fetchAPI(`/series/${seriesId}`);
-        console.log('📖 Dados da série carregados:', series);
-        
-        // Preencher form com os dados da série
-        document.getElementById('series-id').value = series.id;
-        document.getElementById('title').value = series.title || '';
-        document.getElementById('author').value = series.author || '';
-        document.getElementById('publisher').value = series.publisher || '';
-        // REMOVIDO: read_issues e downloaded_issues - não devem ser editados manualmente
-        document.getElementById('total_issues').value = series.total_issues || 0;
-        document.getElementById('series_type').value = series.series_type || 'em_andamento';
-        document.getElementById('is_completed').checked = series.is_completed || false;
-        document.getElementById('cover_url').value = series.cover_url || '';
-        document.getElementById('notes').value = series.notes || '';
-        
-        // Alterar título do modal para indicar edição
-        document.getElementById('modal-title').textContent = 'Editar HQ';
-        
-        // Abrir modal com a classe 'show'
-        const modal = document.getElementById('series-modal');
-        modal.classList.add('show');
-        
-        console.log('✅ Modal de edição aberto com sucesso');
-    } catch (error) {
-        console.error('❌ Error loading series for edit:', error);
-        alert('Erro ao carregar série para edição: ' + error.message);
-    }
-}
-
-async function editSeries() {
-    if (!currentSeriesId) return;
-    
-    try {
-        console.log('✏️ Carregando dados para edição da série:', currentSeriesId);
-        const series = await fetchAPI(`/series/${currentSeriesId}`);
-        
-        console.log('📝 Dados da série carregados:', series);
-        
-        // Preencher o formulário com os dados atuais
-        document.getElementById('series-id').value = series.id;
-        document.getElementById('modal-title').textContent = 'Editar HQ';
-        document.getElementById('title').value = series.title || '';
-        document.getElementById('author').value = series.author || '';
-        document.getElementById('publisher').value = series.publisher || '';
-        document.getElementById('total_issues').value = series.total_issues || 0;
-        document.getElementById('downloaded_issues').value = series.downloaded_issues || 0;
-        document.getElementById('read_issues').value = series.read_issues || 0;
-        document.getElementById('is_completed').checked = series.is_completed || false;
-        document.getElementById('series_type').value = series.series_type || 'em_andamento';
-        document.getElementById('cover_url').value = series.cover_url || '';
-        document.getElementById('notes').value = series.notes || '';
-        
-        // Abrir modal
-        openModal();
-        
-    } catch (error) {
-        console.error('❌ Erro ao carregar dados para edição:', error);
-        alert('Erro ao carregar dados da série.');
-    }
-}
-
-async function deleteSeries(seriesId, title) {
-    if (!confirm(`Tem certeza que deseja deletar "${title}"?`)) {
-        return;
-    }
-    
-    try {
-        console.log('🗑️ Deletando série:', seriesId);
-        await fetchAPI(`/series/${seriesId}`, {
-            method: 'DELETE',
-        });
-        
-        console.log('✅ Série deletada!');
-        
-        if (currentSeriesId === seriesId) {
-            goToHome();
-        } else {
-            loadSeries();
-            loadStats();
-        }
-    } catch (error) {
-        console.error('Error deleting series:', error);
-        alert('Erro ao deletar HQ: ' + error.message);
-    }
-}
-
-async function deleteIssue(issueId, issueNumber) {
-    if (!confirm(`Tem certeza que deseja deletar a edição #${issueNumber}?`)) {
-        return;
-    }
-    
-    try {
-        console.log('🗑️ Deletando edição:', issueId);
-        await fetchAPI(`/issues/${issueId}`, {
-            method: 'DELETE',
-        });
-        
-        console.log('✅ Edição deletada!');
-        
-        if (currentSeriesId) {
-            loadSeriesDetail(currentSeriesId);
-            loadStats();
-            loadSeries();  // ← CORREÇÃO: Recarregar lista para atualizar contadores
-        }
-    } catch (error) {
-        console.error('Error deleting issue:', error);
-        alert('Erro ao deletar edição: ' + error.message);
-    }
-}
-
-async function toggleIssueRead(issueId, isRead) {
-    try {
-        console.log('✓ Marcando edição como', isRead ? 'lida' : 'não lida');
-        await fetchAPI(`/issues/${issueId}`, {
-            method: 'PUT',
-            body: JSON.stringify({ is_read: isRead }),
-        });
-        
-        if (currentSeriesId) {
-            loadSeriesDetail(currentSeriesId);
-            loadStats();
-            loadSeries();  // ← CORREÇÃO: Recarregar lista para atualizar contadores
-        }
-    } catch (error) {
-        console.error('Error toggling issue:', error);
-        alert('Erro ao atualizar edição.');
-    }
-}
-
-console.log('✅ Script carregado! API URL:', API_URL);
-console.log('🔧 Versão: 2.1 - Debug completo');
-
-/**
- * FUNÇÃO: Sincronizar edições automaticamente com base no total_issues
- */
-async function sincronizarEdicoesAutomaticamente() {
-    if (!currentSeriesId) return;
-    
-    const btnSync = event.target;
-    const originalHTML = btnSync.innerHTML;
-    btnSync.disabled = true;
-    btnSync.innerHTML = '⏳ Sincronizando...';
-    
-    try {
-        // Buscar dados da série atual
-        const serie = await fetchAPI(`/series/${currentSeriesId}`);
-        
-        if (!serie.total_issues || serie.total_issues <= 0) {
-            alert('Esta série não tem um total de edições definido.');
-            return;
-        }
-        
-        // Buscar edições existentes
-        const existingIssues = await fetchAPI(`/series/${currentSeriesId}/issues`);
-        
-        // Encontrar edições faltantes
-        const existingNumbers = new Set(existingIssues.map(i => parseInt(i.issue_number)));
-        const faltantes = [];
-        
-        for (let numero = 1; numero <= serie.total_issues; numero++) {
-            if (!existingNumbers.has(numero)) {
-                faltantes.push(numero);
-            }
-        }
-        
-        if (faltantes.length === 0) {
-            alert('✅ Todas as edições já estão cadastradas!');
-            return;
-        }
-        
-        // Confirmar com o usuário
-        const confirmacao = confirm(
-            `Serão adicionadas ${faltantes.length} edições faltantes:\n\n` +
-            `Edições: ${faltantes.slice(0, 10).join(', ')}${faltantes.length > 10 ? '...' : ''}\n\n` +
-            `Continuar?`
-        );
-        
-        if (!confirmacao) return;
-        
-        // Adicionar edições faltantes
-        let adicionadas = 0;
-        for (const numero of faltantes) {
-            try {
-                await fetchAPI(`/series/${currentSeriesId}/issues`, {
-                    method: 'POST',
-                    body: JSON.stringify({
-                        issue_number: numero,
-                        is_read: false,
-                    }),
-                });
-                adicionadas++;
-                console.log(`   ✅ Edição #${numero} adicionada`);
-                
-                await new Promise(r => setTimeout(r, 50));
-            } catch (error) {
-                console.error(`   ❌ Erro ao adicionar edição #${numero}:`, error);
-            }
-        }
-        
-        alert(`✅ ${adicionadas} edições adicionadas com sucesso!`);
-        
-        // Recarregar a página
-        window.location.reload();
-        
-    } catch (error) {
-        console.error('Erro ao sincronizar:', error);
-        alert('❌ Erro ao sincronizar edições.');
-    } finally {
-        btnSync.disabled = false;
-        btnSync.innerHTML = originalHTML;
-    }
-}
-
-/**
- * FUNÇÃO: Verificar se o contador "Lendo" está sincronizado
- */
-async function verificarSincronizacaoLendo() {
-    if (!currentSeriesId) return;
-    
-    try {
-        console.log('🔍 Verificando sincronização do campo "Lendo"...');
-        
-        // Buscar edições da série
-        const issues = await fetchAPI(`/series/${currentSeriesId}/issues`);
-        
-        // Contar quantas estão marcadas como lidas
-        const totalLido = issues.filter(i => i.is_read).length;
-        
-        // Buscar dados da série
-        const serie = await fetchAPI(`/series/${currentSeriesId}`);
-        
-        console.log('📊 Valores:');
-        console.log('   - Lendo (banco): ' + serie.read_issues);
-        console.log('   - Lendo (real): ' + totalLido);
-        
-        if (serie.read_issues === totalLido) {
-            alert(`✅ Sincronização OK!\n\nO contador está correto: ${totalLido} edições lidas.`);
-        } else {
-            const corrigir = confirm(
-                `⚠️ Dessincronização detectada!\n\n` +
-                `Valor atual no banco: ${serie.read_issues}\n` +
-                `Valor real (edições marcadas): ${totalLido}\n\n` +
-                `Deseja corrigir automaticamente?`
-            );
-            
-            if (corrigir) {
-                console.log('🔧 Corrigindo valor...');
-                
-                // Recarregar a página para forçar recálculo
-                // O backend já faz isso automaticamente na função series_to_response
-                await loadSeriesDetail(currentSeriesId);
-                await loadSeries();
-                await loadStats();
-                
-                alert(`✅ Valores atualizados!\n\nAgora mostrando: ${totalLido} edições lidas.`);
-            }
-        }
-        
-    } catch (error) {
-        console.error('❌ Erro ao verificar:', error);
-        alert('❌ Erro ao verificar sincronização.');
-    }
-}
-
-/**
- * SCRIPT: Remover edições duplicadas
- * Cole este código no console para executar
- */
-async function removerEdicoesDuplicadas() {
-    console.log('🧹 Iniciando limpeza de edições duplicadas...\n');
-    
-    try {
-        // Buscar todas as séries
-        const allSeries = await fetchAPI('/series');
-        
-        console.log(`📚 Analisando ${allSeries.length} séries...\n`);
-        
-        let totalRemovidas = 0;
-        
-        for (const serie of allSeries) {
-            console.log(`📖 Verificando: ${serie.title}`);
-            
-            // Buscar todas as edições desta série
-            const issues = await fetchAPI(`/series/${serie.id}/issues`);
-            
-            // Agrupar por número de edição
-            const issuesByNumber = {};
-            issues.forEach(issue => {
-                const num = issue.issue_number;
-                if (!issuesByNumber[num]) {
-                    issuesByNumber[num] = [];
-                }
-                issuesByNumber[num].push(issue);
-            });
-            
-            // Encontrar duplicatas
-            let duplicatasNestaSerie = 0;
-            for (const [numero, issuesList] of Object.entries(issuesByNumber)) {
-                if (issuesList.length > 1) {
-                    console.log(`   ⚠️ Edição #${numero} duplicada (${issuesList.length} vezes)`);
-                    
-                    // Manter a primeira, remover as outras
-                    for (let i = 1; i < issuesList.length; i++) {
-                        const issueToDelete = issuesList[i];
-                        
-                        try {
-                            await fetchAPI(`/issues/${issueToDelete.id}`, {
-                                method: 'DELETE'
-                            });
-                            
-                            console.log(`      ✅ Removida duplicata ID ${issueToDelete.id}`);
-                            duplicatasNestaSerie++;
-                            totalRemovidas++;
-                            
-                            await new Promise(r => setTimeout(r, 50));
-                            
-                        } catch (error) {
-                            console.error(`      ❌ Erro ao remover ID ${issueToDelete.id}:`, error.message);
-                        }
-                    }
-                }
-            }
-            
-            if (duplicatasNestaSerie === 0) {
-                console.log(`   ✅ Sem duplicatas`);
-            }
-        }
-        
-        console.log('\n' + '='.repeat(50));
-        console.log('✅ LIMPEZA CONCLUÍDA!');
-        console.log('='.repeat(50));
-        console.log(`🗑️ Total de duplicatas removidas: ${totalRemovidas}`);
-        
-        if (totalRemovidas > 0) {
-            const recarregar = confirm('Duplicatas removidas! Deseja recarregar a página?');
-            if (recarregar) {
-                window.location.reload();
-            }
-        }
-        
-    } catch (error) {
-        console.error('❌ Erro:', error);
     }
 }
