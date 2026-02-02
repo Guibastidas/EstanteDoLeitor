@@ -332,36 +332,12 @@ async function loadSeriesDetail(seriesId) {
         document.getElementById('detail-progress-bar').style.width = `${progressPercent}%`;
         
         // Stats
-        console.log('📊 Atualizando stats da página de detalhes...');
-        const readingEl = document.getElementById('detail-reading');
-        const downloadedEl = document.getElementById('detail-downloaded');
-        const totalEl = document.getElementById('detail-total');
-        
-        if (readingEl) {
-            readingEl.textContent = series.read_issues;
-            console.log('   ✅ detail-reading:', series.read_issues);
-        } else {
-            console.error('   ❌ Elemento detail-reading não encontrado!');
-        }
-        
-        if (downloadedEl) {
-            downloadedEl.textContent = series.downloaded_issues;
-            console.log('   ✅ detail-downloaded:', series.downloaded_issues);
-        } else {
-            console.error('   ❌ Elemento detail-downloaded não encontrado!');
-        }
-        
-        if (totalEl) {
-            totalEl.textContent = series.total_issues;
-            console.log('   ✅ detail-total:', series.total_issues);
-        } else {
-            console.error('   ❌ Elemento detail-total não encontrado!');
-        }
+        document.getElementById('detail-reading').textContent = series.read_issues;
+        document.getElementById('detail-downloaded').textContent = series.downloaded_issues;
+        document.getElementById('detail-total').textContent = series.total_issues;
         
         // Edições
-        console.log('📚 Chamando displayIssues com', issues.length, 'edições...');
         displayIssues(issues);
-        console.log('✅ displayIssues concluída!');
     } catch (error) {
         console.error('Error loading series detail:', error);
         alert('Erro ao carregar detalhes da série.');
@@ -370,47 +346,24 @@ async function loadSeriesDetail(seriesId) {
 }
 
 function displayIssues(issues) {
-    console.log('📖 displayIssues INICIADA');
-    console.log('   Parâmetro issues:', issues);
-    console.log('   Tipo:', typeof issues);
-    console.log('   É array?', Array.isArray(issues));
-    console.log('   Length:', issues ? issues.length : 'null/undefined');
-    
     const issuesList = document.getElementById('issues-list');
     const emptyIssues = document.getElementById('empty-issues');
-    
-    console.log('   Elemento issues-list:', issuesList ? 'ENCONTRADO' : 'NÃO ENCONTRADO');
-    console.log('   Elemento empty-issues:', emptyIssues ? 'ENCONTRADO' : 'NÃO ENCONTRADO');
-    
-    if (!issuesList) {
-        console.error('❌ ERRO: issues-list não existe no DOM!');
-        return;
-    }
     
     console.log('📖 Exibindo', issues.length, 'edições');
     
     if (!issues || issues.length === 0) {
-        console.log('   ℹ️ Nenhuma edição para exibir');
         issuesList.innerHTML = '';
-        if (emptyIssues) {
-            emptyIssues.style.display = 'block';
-        }
+        emptyIssues.style.display = 'block';
         return;
     }
     
-    if (emptyIssues) {
-        emptyIssues.style.display = 'none';
-    }
+    emptyIssues.style.display = 'none';
     issuesList.innerHTML = '';
-    
-    console.log('   🔄 Limpando lista de edições...');
     
     // Ordenar por número
     const sortedIssues = [...issues].sort((a, b) => a.issue_number - b.issue_number);
-    console.log('   📋 Edições ordenadas:', sortedIssues.map(i => `#${i.issue_number}`).join(', '));
     
-    sortedIssues.forEach((issue, index) => {
-        console.log(`   ➕ Criando card para edição #${issue.issue_number} (${index + 1}/${sortedIssues.length})`);
+    sortedIssues.forEach(issue => {
         const issueCard = document.createElement('div');
         issueCard.className = `issue-card ${issue.is_read ? 'read' : ''}`;
         
@@ -433,9 +386,6 @@ function displayIssues(issues) {
         
         issuesList.appendChild(issueCard);
     });
-    
-    console.log('   ✅ Todos os cards foram adicionados ao DOM!');
-    console.log('   📊 Total de elementos .issue-card no DOM:', document.querySelectorAll('.issue-card').length);
 }
 
 // Filter
