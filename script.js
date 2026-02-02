@@ -994,6 +994,7 @@ async function sincronizarEdicoesAutomaticamente() {
 
 /**
  * FUNÇÃO: Verificar se o contador "Lendo" está sincronizado
+ * NOVA VERSÃO: Agora sincroniza baseado no read_issues da tabela series
  */
 async function verificarSincronizacaoLendo() {
     if (!currentSeriesId) return;
@@ -1001,39 +1002,80 @@ async function verificarSincronizacaoLendo() {
     try {
         console.log('🔍 Verificando sincronização do campo "Lendo"...');
         
+        // Buscar dados da série (tem o read_issues que veio da planilha)
+        const serie = await fetchAPI(`/series/${currentSeriesId}`);
+        
         // Buscar edições da série
         const issues = await fetchAPI(`/series/${currentSeriesId}/issues`);
         
         // Contar quantas estão marcadas como lidas
-        const totalLido = issues.filter(i => i.is_read).length;
+        const totalLidoReal = issues.filter(i => i.is_read).length;
         
-        // Buscar dados da série
-        const serie = await fetchAPI(`/series/${currentSeriesId}`);
+        // O valor que DEVERIA estar (da planilha/banco series)
+        const totalLidoEsperado = serie.read_issues || 0;
         
         console.log('📊 Valores:');
-        console.log('   - Lendo (banco): ' + serie.read_issues);
-        console.log('   - Lendo (real): ' + totalLido);
+        console.log('   - Lendo (esperado - da planilha): ' + totalLidoEsperado);
+        console.log('   - Lendo (real - edições marcadas): ' + totalLidoReal);
+        console.log('   - Total de edições cadastradas: ' + issues.length);
         
-        if (serie.read_issues === totalLido) {
-            alert(`✅ Sincronização OK!\n\nO contador está correto: ${totalLido} edições lidas.`);
+        if (totalLidoReal === totalLidoEsperado) {
+            alert(`✅ Sincronização OK!\n\nO contador está correto: ${totalLidoReal} edições lidas.`);
         } else {
             const corrigir = confirm(
                 `⚠️ Dessincronização detectada!\n\n` +
-                `Valor atual no banco: ${serie.read_issues}\n` +
-                `Valor real (edições marcadas): ${totalLido}\n\n` +
-                `Deseja corrigir automaticamente?`
+                `Valor esperado (da planilha): ${totalLidoEsperado}\n` +
+                `Valor atual (edições marcadas): ${totalLidoReal}\n` +
+                `Total de edições cadastradas: ${issues.length}\n\n` +
+                `Deseja corrigir automaticamente?\n` +
+                `(Vai marcar as primeiras ${totalLidoEsperado} edições como lidas)`
             );
             
             if (corrigir) {
-                console.log('🔧 Corrigindo valor...');
+                console.log('🔧 Sincronizando edições como lidas...');
                 
-                // Recarregar a página para forçar recálculo
-                // O backend já faz isso automaticamente na função series_to_response
+                // Ordenar edições por número
+                const issuesSorted = issues.sort((a, b) => a.issue_number - b.issue_number);
+                
+                let atualizadas = 0;
+                
+                // Marcar as primeiras N edições como lidas
+                for (let i = 0; i < Math.min(totalLidoEsperado, issuesSorted.length); i++) {
+                    const issue = issuesSorted[i];
+                    
+                    if (!issue.is_read) {
+                        try {
+                            await fetchAPI(`/issues/${issue.id}`, {
+                                method: 'PUT',
+                                body: JSON.stringify({ is_read: true }),
+                            });
+                            atualizadas++;
+                            console.log(`   ✅ Edição #${issue.issue_number} marcada como lida`);
+                        } catch (error) {
+                            console.error(`   ❌ Erro ao marcar edição #${issue.issue_number}:`, error);
+                        }
+                    }
+                }
+                
+                // Se precisar criar edições que não existem
+                if (totalLidoEsperado > issues.length) {
+                    const faltam = totalLidoEsperado - issues.length;
+                    console.log(`⚠️  Faltam ${faltam} edições. Você precisa adicioná-las primeiro.`);
+                    alert(
+                        `⚠️ Atenção!\n\n` +
+                        `Você marcou ${totalLidoEsperado} edições como lidas,\n` +
+                        `mas só tem ${issues.length} edições cadastradas.\n\n` +
+                        `${atualizadas} edições foram marcadas como lidas.\n` +
+                        `Use o botão "🔄 Sincronizar Edições" para adicionar as faltantes.`
+                    );
+                } else {
+                    alert(`✅ Sincronização concluída!\n\n${atualizadas} edições foram marcadas como lidas.`);
+                }
+                
+                // Recarregar dados
                 await loadSeriesDetail(currentSeriesId);
                 await loadSeries();
                 await loadStats();
-                
-                alert(`✅ Valores atualizados!\n\nAgora mostrando: ${totalLido} edições lidas.`);
             }
         }
         
