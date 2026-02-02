@@ -721,8 +721,31 @@ async function deleteSeries(seriesId) {
 
 // Issue Modal
 function openAddIssueModal() {
+    console.log('🔵 openAddIssueModal chamada!');
+    console.log('🔵 currentSeriesId:', currentSeriesId);
+    
+    if (!currentSeriesId) {
+        console.error('❌ currentSeriesId está null!');
+        alert('Erro: Série não identificada. Tente recarregar a página.');
+        return;
+    }
+    
     const modal = document.getElementById('issue-modal');
     const form = document.getElementById('issue-form');
+    
+    if (!modal) {
+        console.error('❌ Modal não encontrado!');
+        alert('Erro: Modal não encontrado no HTML.');
+        return;
+    }
+    
+    if (!form) {
+        console.error('❌ Form não encontrado!');
+        alert('Erro: Formulário não encontrado no HTML.');
+        return;
+    }
+    
+    console.log('✅ Abrindo modal...');
     form.reset();
     modal.classList.add('active');
 }
@@ -735,10 +758,14 @@ function closeIssueModal() {
 async function submitIssueForm(e) {
     e.preventDefault();
     
+    console.log('📝 submitIssueForm chamada');
+    
     const data = {
         issue_number: parseInt(document.getElementById('issue_number').value),
         is_read: document.getElementById('is_read').checked,
     };
+    
+    console.log('📊 Dados:', data);
     
     try {
         await fetchAPI(`/series/${currentSeriesId}/issues`, {
@@ -757,12 +784,32 @@ async function submitIssueForm(e) {
             });
         }
         
+        console.log('✅ Edição adicionada com sucesso!');
         closeIssueModal();
         loadSeriesDetail(currentSeriesId);
         loadStats();
         loadSeries();
     } catch (error) {
-        console.error('Error adding issue:', error);
+        console.error('❌ Error adding issue:', error);
         alert('Erro ao adicionar edição: ' + error.message);
     }
 }
+
+// Garantir que está no escopo global
+window.submitIssueForm = submitIssueForm;
+
+// Exportar todas as funções necessárias para o escopo global (para uso no HTML inline)
+window.filterSeries = filterSeries;
+window.handleSearch = handleSearch;
+window.clearSearch = clearSearch;
+window.showSeriesDetail = showSeriesDetail;
+window.goToHome = goToHome;
+window.adicionarEdicaoRapida = adicionarEdicaoRapida;
+window.sincronizarEdicoesAutomaticamente = sincronizarEdicoesAutomaticamente;
+window.verificarSincronizacaoLendo = verificarSincronizacaoLendo;
+window.toggleIssueRead = toggleIssueRead;
+window.deleteIssue = deleteIssue;
+window.openModal = openModal;
+window.closeModal = closeModal;
+window.submitSeriesForm = submitSeriesForm;
+window.deleteSeries = deleteSeries;
