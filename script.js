@@ -322,22 +322,52 @@ async function loadSeriesDetail(seriesId) {
             coverPlaceholder.style.display = 'flex';
         }
         
-        // CORREÇÃO: Calcular estatísticas corretas
+        // CONFIGURAÇÃO DE EXCEÇÕES - Mesma lógica da displayIssues
+        const nomeSerieAtual = series.title.toLowerCase();
+        const excecoesLeitura = {
+            'asa noturna': 121,
+            'nightwing': 121,
+            'action comics': 1075,
+            'detective comics': 1090
+        };
+        
+        let edicaoMinimaLida = 1;
+        for (const [nomeSerie, edicaoMinima] of Object.entries(excecoesLeitura)) {
+            if (nomeSerieAtual.includes(nomeSerie)) {
+                edicaoMinimaLida = edicaoMinima;
+                console.log(`⚠️ EXCEÇÃO: ${series.title} - Edições antes da #${edicaoMinima} não contam`);
+                break;
+            }
+        }
+        
+        // CORREÇÃO: Calcular estatísticas corretas considerando exceções
         const totalPublicado = series.total_issues || 0;  // Quantas edições foram publicadas
         const totalBaixado = issues.length;  // Quantas edições você tem no sistema
-        const totalLido = issues.filter(i => i.is_read).length;  // Quantas você leu
         
-        // Progresso baseado em lidas vs publicadas
-        const progressPercent = totalPublicado > 0 
-            ? Math.min((totalLido / totalPublicado) * 100, 100) 
+        // Filtrar apenas edições que você realmente leu (>= edicaoMinimaLida E is_read = true)
+        const totalLido = issues.filter(i => i.is_read && i.issue_number >= edicaoMinimaLida).length;
+        
+        // Calcular o total válido para progresso (edições a partir da edicaoMinimaLida)
+        const totalValidoParaProgresso = Math.max(totalPublicado - edicaoMinimaLida + 1, 0);
+        
+        // Progresso baseado em lidas vs edições válidas
+        const progressPercent = totalValidoParaProgresso > 0 
+            ? Math.min((totalLido / totalValidoParaProgresso) * 100, 100) 
             : 0;
         
-        document.getElementById('detail-progress').textContent = 
-            `${totalLido}/${totalPublicado} edições (${Math.round(progressPercent)}%)`;
+        // Mostrar progresso considerando apenas edições válidas
+        if (edicaoMinimaLida > 1) {
+            document.getElementById('detail-progress').textContent = 
+                `${totalLido}/${totalValidoParaProgresso} edições (${Math.round(progressPercent)}%) - A partir da #${edicaoMinimaLida}`;
+        } else {
+            document.getElementById('detail-progress').textContent = 
+                `${totalLido}/${totalPublicado} edições (${Math.round(progressPercent)}%)`;
+        }
+        
         document.getElementById('detail-progress-bar').style.width = `${progressPercent}%`;
         
         // Stats corrigidas
-        document.getElementById('detail-reading').textContent = totalLido;  // Quantas você leu
+        document.getElementById('detail-reading').textContent = totalLido;  // Quantas você leu (considerando exceção)
         document.getElementById('detail-downloaded').textContent = totalBaixado;  // Quantas você tem (issues criados)
         document.getElementById('detail-total').textContent = totalPublicado;  // Quantas foram publicadas
         
@@ -370,6 +400,29 @@ function displayIssues(issues, totalBaixado, totalPublicado) {
     // Criar um Set com os números das edições que existem
     const existingNumbers = new Set((issues || []).map(i => i.issue_number));
     
+    // CONFIGURAÇÃO DE EXCEÇÕES - Edições que você NÃO leu antes de um certo número
+    // Buscar série atual para verificar se tem exceção
+    const serieAtual = allSeries.find(s => s.id === currentSeriesId);
+    const nomeSerieAtual = serieAtual ? serieAtual.title.toLowerCase() : '';
+    
+    // Definir edições mínimas para cada série com exceção
+    const excecoesLeitura = {
+        'asa noturna': 121,        // Não leu antes da #121
+        'nightwing': 121,          // Caso esteja em inglês
+        'action comics': 1075,     // Não leu antes da #1075
+        'detective comics': 1090   // Não leu antes da #1090
+    };
+    
+    // Verificar se a série atual tem exceção
+    let edicaoMinimaLida = 1; // Por padrão, começa da edição 1
+    for (const [nomeSerie, edicaoMinima] of Object.entries(excecoesLeitura)) {
+        if (nomeSerieAtual.includes(nomeSerie)) {
+            edicaoMinimaLida = edicaoMinima;
+            console.log(`⚠️ EXCEÇÃO detectada: ${nomeSerieAtual} - Edições antes da #${edicaoMinima} não foram lidas`);
+            break;
+        }
+    }
+    
     // Criar todas as edições (existentes + faltantes) até total_issues
     const allIssueCards = [];
     
@@ -380,9 +433,9 @@ function displayIssues(issues, totalBaixado, totalPublicado) {
         const issueCard = document.createElement('div');
         
         // SISTEMA DE CORES:
-        // 🟢 Verde = Lida (is_read = true) - classe 'read'
-        // 🟡 Amarelo/Branco = Baixada mas não lida (existe no sistema, is_read = false) - sem classe extra
-        // 🔴 Vermelho = Não baixada (não existe no sistema) - classe 'issue-faltante'
+        // 🟢 Verde = Lida (is_read = true E número >= edicaoMinimaLida)
+        // 🟡 Amarelo/Branco = Baixada mas não lida (existe no sistema, is_read = false OU número < edicaoMinimaLida)
+        // 🔴 Vermelho = Não baixada (não existe no sistema OU número < edicaoMinimaLida E não existe)
         
         let colorClass = '';
         let titleText = '';
@@ -390,27 +443,49 @@ function displayIssues(issues, totalBaixado, totalPublicado) {
         
         if (issue) {
             // Edição existe no sistema
-            if (issue.is_read) {
-                colorClass = 'read';  // Verde - usa a classe CSS existente
+            // MAS verificar se está antes da edição mínima lida
+            if (numero < edicaoMinimaLida) {
+                // Edição antiga que você não leu - tratar como "não baixada" (vermelho)
+                colorClass = 'issue-faltante';  
+                titleText = `Edição #${numero} - Não lida (anterior)`;
+                actionsHTML = `
+                    <button class="btn-icon btn-delete" onclick="deleteIssue(${issue.id}, ${numero})" title="Deletar edição">
+                        🗑️
+                    </button>
+                `;
+            } else if (issue.is_read) {
+                colorClass = 'read';  // Verde
                 titleText = `Edição #${numero}`;
+                actionsHTML = `
+                    <label class="checkbox-icon" title="Marcar como não lida">
+                        <input type="checkbox" checked onchange="toggleIssueRead(${issue.id}, this.checked)">
+                        <span class="checkmark">✓</span>
+                    </label>
+                    <button class="btn-icon btn-delete" onclick="deleteIssue(${issue.id}, ${numero})" title="Deletar edição">
+                        🗑️
+                    </button>
+                `;
             } else {
                 colorClass = '';  // Card padrão (branco/sem classe especial)
                 titleText = `Edição #${numero}`;
+                actionsHTML = `
+                    <label class="checkbox-icon" title="Marcar como lida">
+                        <input type="checkbox" onchange="toggleIssueRead(${issue.id}, this.checked)">
+                        <span class="checkmark"></span>
+                    </label>
+                    <button class="btn-icon btn-delete" onclick="deleteIssue(${issue.id}, ${numero})" title="Deletar edição">
+                        🗑️
+                    </button>
+                `;
             }
-            
-            actionsHTML = `
-                <label class="checkbox-icon" title="${issue.is_read ? 'Marcar como não lida' : 'Marcar como lida'}">
-                    <input type="checkbox" ${issue.is_read ? 'checked' : ''} onchange="toggleIssueRead(${issue.id}, this.checked)">
-                    <span class="checkmark">${issue.is_read ? '✓' : ''}</span>
-                </label>
-                <button class="btn-icon btn-delete" onclick="deleteIssue(${issue.id}, ${numero})" title="Deletar edição">
-                    🗑️
-                </button>
-            `;
         } else {
-            // Edição NÃO existe no sistema (falta baixar)
-            colorClass = 'issue-faltante';  // Vermelho - usa a classe CSS existente
-            titleText = `Edição #${numero} - Não baixada`;
+            // Edição NÃO existe no sistema
+            colorClass = 'issue-faltante';  // Vermelho
+            if (numero < edicaoMinimaLida) {
+                titleText = `Edição #${numero} - Não lida (anterior)`;
+            } else {
+                titleText = `Edição #${numero} - Não baixada`;
+            }
             actionsHTML = `
                 <button class="btn-icon btn-add-quick" onclick="adicionarEdicaoRapida(${numero})" title="Adicionar esta edição">
                     ➕
