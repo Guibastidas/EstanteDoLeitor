@@ -11,7 +11,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, Response
 from pydantic import BaseModel
 from sqlalchemy import create_engine, Column, Integer, String, Boolean, Text, DateTime, func
 from sqlalchemy.ext.declarative import declarative_base
@@ -123,6 +123,46 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Servir arquivos estáticos (CSS, JS, etc)
+# Isso deve vir ANTES das rotas
+import os
+from pathlib import Path
+
+# Verificar se os arquivos existem
+current_dir = Path(__file__).parent
+static_files = ["styles.css", "script.js", "script-extensions.js", "index.html"]
+
+# Montar arquivos estáticos individualmente para garantir que funcionem
+@app.get("/styles.css")
+async def get_styles():
+    """Servir arquivo CSS"""
+    try:
+        with open("styles.css", "r", encoding="utf-8") as f:
+            content = f.read()
+        return Response(content=content, media_type="text/css")
+    except FileNotFoundError:
+        raise HTTPException(status_code=404, detail="CSS not found")
+
+@app.get("/script.js")
+async def get_script():
+    """Servir arquivo JavaScript principal"""
+    try:
+        with open("script.js", "r", encoding="utf-8") as f:
+            content = f.read()
+        return Response(content=content, media_type="application/javascript")
+    except FileNotFoundError:
+        raise HTTPException(status_code=404, detail="JS not found")
+
+@app.get("/script-extensions.js")
+async def get_script_extensions():
+    """Servir arquivo JavaScript de extensões"""
+    try:
+        with open("script-extensions.js", "r", encoding="utf-8") as f:
+            content = f.read()
+        return Response(content=content, media_type="application/javascript")
+    except FileNotFoundError:
+        raise HTTPException(status_code=404, detail="JS extensions not found")
 
 
 # ==================== FUNÇÕES AUXILIARES ====================
