@@ -1,5 +1,6 @@
-// API Configuration
-const API_URL = 'https://estantedoleitor.up.railway.app/';
+// API Configuration - CORRIGIDO para funcionar no Railway
+// Usa URL relativa que funciona tanto local quanto no Railway
+const API_URL = window.location.origin;
 
 // State
 let currentFilter = 'all';
@@ -50,102 +51,57 @@ async function fetchAPI(endpoint, options = {}) {
         return await response.json();
     } catch (error) {
         console.error('API Error:', error);
-        alert('Erro ao conectar com o servidor. Certifique-se de que o backend está rodando.');
         throw error;
     }
 }
 
-// Navigation
-function goToHome() {
-    document.getElementById('home-view').style.display = 'block';
-    document.getElementById('detail-view').style.display = 'none';
-    document.getElementById('filters-section').style.display = 'block';
-    document.getElementById('stats-section').style.display = 'block';
-    document.getElementById('btn-back').style.display = 'none';
-    document.getElementById('header-actions').style.display = 'flex';
-    currentSeriesId = null;
-    loadSeries();
-}
-
-function goToDetail(seriesId) {
-    currentSeriesId = seriesId;
-    document.getElementById('home-view').style.display = 'none';
-    document.getElementById('detail-view').style.display = 'block';
-    document.getElementById('filters-section').style.display = 'none';
-    document.getElementById('stats-section').style.display = 'none';
-    document.getElementById('btn-back').style.display = 'inline-flex';
-    document.getElementById('header-actions').style.display = 'none';
-    loadSeriesDetail(seriesId);
-}
-
-// Search
-function handleSearch() {
-    clearTimeout(searchTimeout);
-    const query = document.getElementById('search-input').value;
-    const clearBtn = document.getElementById('search-clear');
-    
-    // Mostrar ou ocultar botão X
-    if (query.trim()) {
-        clearBtn.style.display = 'block';
-    } else {
-        clearBtn.style.display = 'none';
+// Load Functions
+async function loadSeries(filterQuery = '') {
+    try {
+        const endpoint = filterQuery ? `/series?search=${encodeURIComponent(filterQuery)}` : '/series';
+        allSeries = await fetchAPI(endpoint);
+        displaySeries();
+    } catch (error) {
+        console.error('Error loading series:', error);
+        showEmptyState();
     }
-    
-    searchTimeout = setTimeout(() => {
-        if (query.trim()) {
-            loadSeries(query);
-        } else {
-            loadSeries();
-        }
-    }, 300);
 }
 
-function clearSearch() {
-    document.getElementById('search-input').value = '';
-    document.getElementById('search-clear').style.display = 'none';
-    loadSeries();
-}
-
-// Stats
 async function loadStats() {
     try {
         const stats = await fetchAPI('/stats');
+        
+        document.getElementById('stat-total').textContent = stats.total;
         document.getElementById('stat-para-ler').textContent = stats.para_ler;
         document.getElementById('stat-lendo').textContent = stats.lendo;
         document.getElementById('stat-concluidas').textContent = stats.concluidas;
-        document.getElementById('stat-total').textContent = stats.total;
     } catch (error) {
         console.error('Error loading stats:', error);
     }
 }
 
-// Series List
-async function loadSeries(search = null) {
-    try {
-        const endpoint = search ? `/series?search=${encodeURIComponent(search)}` : '/series';
-        const series = await fetchAPI(endpoint);
-        allSeries = series;
-        displaySeries(series);
-    } catch (error) {
-        console.error('Error loading series:', error);
-    }
-}
-
-function displaySeries(series) {
+// Display Functions
+function displaySeries() {
     const grid = document.getElementById('series-grid');
     const emptyState = document.getElementById('empty-state');
     
-    grid.innerHTML = '';
+    // Filter series
+    let filtered = allSeries;
+    if (currentFilter !== 'all') {
+        filtered = allSeries.filter(s => s.status === currentFilter);
+    }
     
-    if (series.length === 0) {
-        emptyState.classList.add('show');
+    if (filtered.length === 0) {
+        grid.innerHTML = '';
+        emptyState.style.display = 'block';
         return;
     }
     
-    emptyState.classList.remove('show');
+    emptyState.style.display = 'none';
+    grid.innerHTML = '';
     
-    series.forEach((s) => {
-        const card = createSeriesCard(s);
+    filtered.forEach(series => {
+        const card = createSeriesCard(series);
         grid.appendChild(card);
     });
 }
@@ -233,260 +189,220 @@ function createSeriesCard(series) {
 }
 
 function getStatusText(status) {
-    const statusTexts = {
+    const statusMap = {
         'para_ler': 'Para Ler',
         'lendo': 'Lendo',
         'concluida': 'Concluída'
     };
-    return statusTexts[status] || status;
+    return statusMap[status] || status;
 }
 
-function filterSeries(filter) {
-    currentFilter = filter;
+function showEmptyState() {
+    const grid = document.getElementById('series-grid');
+    const emptyState = document.getElementById('empty-state');
     
-    document.querySelectorAll('.filter-tab').forEach(tab => {
-        tab.classList.remove('active');
-    });
-    event.target.classList.add('active');
-    
-    if (filter === 'all') {
-        displaySeries(allSeries);
-    } else {
-        const filtered = allSeries.filter(s => s.status === filter);
-        displaySeries(filtered);
-    }
+    grid.innerHTML = '';
+    emptyState.style.display = 'block';
 }
 
-// Series Detail
+// Navigation
+function goToHome() {
+    // Hide detail view
+    document.getElementById('detail-view').style.display = 'none';
+    document.getElementById('home-view').style.display = 'block';
+    
+    // Show stats and filters
+    document.getElementById('stats-section').style.display = 'block';
+    document.getElementById('filters-section').style.display = 'block';
+    
+    // Hide back button
+    document.getElementById('btn-back').style.display = 'none';
+    
+    // Reload series
+    currentSeriesId = null;
+    loadSeries();
+    loadStats();
+}
+
+async function goToDetail(seriesId) {
+    currentSeriesId = seriesId;
+    
+    // Hide home view
+    document.getElementById('home-view').style.display = 'none';
+    document.getElementById('detail-view').style.display = 'block';
+    
+    // Hide stats and filters
+    document.getElementById('stats-section').style.display = 'none';
+    document.getElementById('filters-section').style.display = 'none';
+    
+    // Show back button
+    document.getElementById('btn-back').style.display = 'block';
+    
+    // Load series detail
+    await loadSeriesDetail(seriesId);
+}
+
 async function loadSeriesDetail(seriesId) {
     try {
         const series = await fetchAPI(`/series/${seriesId}`);
         const issues = await fetchAPI(`/series/${seriesId}/issues`);
         
-        displaySeriesDetail(series, issues);
+        // Título
+        document.getElementById('detail-title').textContent = series.title;
+        
+        // Badge de tipo
+        const typeInfo = getSeriesTypeLabel(series.series_type || 'em_andamento');
+        const titleElement = document.getElementById('detail-title');
+        titleElement.innerHTML = `
+            ${series.title}
+            <span class="series-type-badge ${typeInfo.class}" style="margin-left: 10px; font-size: 0.5em; vertical-align: middle;">
+                ${typeInfo.emoji} ${typeInfo.text}
+            </span>
+        `;
+        
+        // Autor e editora
+        document.getElementById('detail-author').textContent = series.author ? `✏️ ${series.author}` : '';
+        document.getElementById('detail-publisher').textContent = series.publisher ? `📚 ${series.publisher}` : '';
+        
+        // Capa
+        const coverImg = document.getElementById('detail-cover');
+        const coverPlaceholder = coverImg.nextElementSibling;
+        
+        if (series.cover_url) {
+            coverImg.src = series.cover_url;
+            coverImg.style.display = 'block';
+            coverPlaceholder.style.display = 'none';
+        } else {
+            coverImg.style.display = 'none';
+            coverPlaceholder.style.display = 'flex';
+        }
+        
+        // Progresso
+        const progressPercent = series.total_issues > 0 
+            ? Math.min((series.read_issues / series.total_issues) * 100, 100) 
+            : 0;
+        
+        document.getElementById('detail-progress').textContent = 
+            `${series.read_issues}/${series.total_issues} edições (${Math.round(progressPercent)}%)`;
+        document.getElementById('detail-progress-bar').style.width = `${progressPercent}%`;
+        
+        // Stats
+        document.getElementById('detail-reading').textContent = series.read_issues;
+        document.getElementById('detail-downloaded').textContent = series.downloaded_issues;
+        document.getElementById('detail-total').textContent = series.total_issues;
+        
+        // Edições
+        displayIssues(issues);
     } catch (error) {
         console.error('Error loading series detail:', error);
     }
 }
 
-function displaySeriesDetail(series, issues) {
-    // Título com badge de tipo
-    const typeInfo = getSeriesTypeLabel(series.series_type || 'em_andamento');
-    const titleElement = document.getElementById('detail-title');
-    titleElement.innerHTML = `
-        ${series.title}
-        <span class="series-type-badge ${typeInfo.class}" style="margin-left: 10px; font-size: 0.5em; vertical-align: middle;">
-            ${typeInfo.emoji} ${typeInfo.text}
-        </span>
-    `;
+function displayIssues(issues) {
+    const issuesList = document.getElementById('issues-list');
+    const emptyIssues = document.getElementById('empty-issues');
     
-    if (series.cover_url) {
-        document.getElementById('detail-cover').src = series.cover_url;
-        document.getElementById('detail-cover').style.display = 'block';
-        document.getElementById('detail-cover').nextElementSibling.style.display = 'none';
-    } else {
-        document.getElementById('detail-cover').style.display = 'none';
-        document.getElementById('detail-cover').nextElementSibling.style.display = 'flex';
-    }
-    
-    document.getElementById('detail-author').textContent = series.author ? `✏️ ${series.author}` : '';
-    document.getElementById('detail-publisher').textContent = series.publisher ? `📚 ${series.publisher}` : '';
-    
-    const progressPercent = series.total_issues > 0 
-        ? Math.min((series.read_issues / series.total_issues) * 100, 100) 
-        : 0;
-    
-    document.getElementById('detail-progress').textContent = 
-        `${series.read_issues}/${series.total_issues} edições (${Math.round(progressPercent)}%)`;
-    
-    const progressBar = document.getElementById('detail-progress-bar');
-    progressBar.style.width = `${progressPercent}%`;
-    progressBar.className = 'progress-bar';
-    if (progressPercent === 100) progressBar.classList.add('completed');
-    else if (progressPercent === 0) progressBar.classList.add('not-started');
-    
-    document.getElementById('detail-reading').textContent = series.read_issues;
-    document.getElementById('detail-downloaded').textContent = series.downloaded_issues;
-    document.getElementById('detail-total').textContent = series.total_issues;
-    
-    displayIssues(issues, series);
-}
-
-function displayIssues(issues, series) {
-    const list = document.getElementById('issues-list');
-    const emptyState = document.getElementById('empty-issues');
-    
-    list.innerHTML = '';
-    
-    // Criar cards baseado no total_issues, não no downloaded
-    const totalIssues = series.total_issues || 0;
-    
-    if (totalIssues === 0) {
-        emptyState.style.display = 'block';
+    if (!issues || issues.length === 0) {
+        issuesList.innerHTML = '';
+        emptyIssues.style.display = 'block';
         return;
     }
     
-    emptyState.style.display = 'none';
+    emptyIssues.style.display = 'none';
+    issuesList.innerHTML = '';
     
-    // Mapear as issues existentes por número
-    const issuesMap = {};
     issues.forEach(issue => {
-        issuesMap[issue.issue_number] = issue;
+        const issueCard = document.createElement('div');
+        issueCard.className = `issue-card ${issue.is_read ? 'read' : ''}`;
+        
+        issueCard.innerHTML = `
+            <div class="issue-number">#${issue.issue_number}</div>
+            <div class="issue-info">
+                <div class="issue-title">${issue.title || `Edição #${issue.issue_number}`}</div>
+                ${issue.date_read ? `<div class="issue-date">Lida em ${new Date(issue.date_read).toLocaleDateString('pt-BR')}</div>` : ''}
+            </div>
+            <div class="issue-actions">
+                <label class="checkbox-label">
+                    <input type="checkbox" ${issue.is_read ? 'checked' : ''} onchange="toggleIssueRead(${issue.id}, this.checked)">
+                    <span>Lida</span>
+                </label>
+            </div>
+        `;
+        
+        issuesList.appendChild(issueCard);
+    });
+}
+
+// Filter
+function filterSeries(filter) {
+    currentFilter = filter;
+    
+    // Update active tab
+    document.querySelectorAll('.filter-tab').forEach(tab => {
+        tab.classList.remove('active');
+        if (tab.dataset.filter === filter) {
+            tab.classList.add('active');
+        }
     });
     
-    // Descobrir qual é a edição atual sendo lida
-    const readIssuesNumbers = issues.filter(i => i.is_read).map(i => i.issue_number);
-    const currentReadingIssue = readIssuesNumbers.length > 0 ? Math.max(...readIssuesNumbers) + 1 : 0;
-    
-    // Criar cards para todas as edições até o total
-    for (let i = 1; i <= totalIssues; i++) {
-        const existingIssue = issuesMap[i];
-        const isDownloaded = existingIssue ? existingIssue.is_downloaded : (i <= series.downloaded_issues);
-        const isRead = existingIssue ? existingIssue.is_read : false;
-        
-        const issueData = existingIssue || {
-            id: null,
-            issue_number: i,
-            is_read: isRead,
-            is_downloaded: isDownloaded
-        };
-        
-        const item = createIssueItem(issueData, series, currentReadingIssue);
-        list.appendChild(item);
-    }
+    displaySeries();
 }
 
-function createIssueItem(issue, series, currentReadingIssue) {
-    const item = document.createElement('div');
+// Search
+function handleSearch() {
+    const searchInput = document.getElementById('search-input');
+    const searchClear = document.getElementById('search-clear');
+    const query = searchInput.value.trim();
     
-    // Determinar a classe baseada no status
-    let statusClass = '';
-    if (issue.is_read) {
-        statusClass = 'read'; // Verde - já lida
-    } else if (currentReadingIssue > 0 && issue.issue_number === currentReadingIssue && issue.is_downloaded) {
-        statusClass = 'reading'; // Amarelo - lendo agora (e baixada)
-    } else if (issue.issue_number > series.downloaded_issues) {
-        statusClass = 'not-downloaded'; // Cinza - não baixada (número maior que downloaded)
-    } else if (issue.is_downloaded) {
-        statusClass = 'not-read'; // Vermelho - baixada mas não lida
-    } else {
-        statusClass = 'not-downloaded'; // Cinza - não baixada
-    }
+    // Show/hide clear button
+    searchClear.style.display = query ? 'block' : 'none';
     
-    item.className = `issue-item ${statusClass}`;
-    
-    // Se a edição não existe no banco (id null), criar botões desabilitados
-    if (issue.id === null) {
-        item.innerHTML = `
-            <div class="issue-number-medium">#${issue.issue_number}</div>
-            <div class="issue-buttons">
-                <button class="btn-status-issue" disabled title="Adicione esta edição primeiro">
-                    ○
-                </button>
-                <button class="btn-delete-issue" disabled title="Edição não adicionada">
-                    🗑️
-                </button>
-            </div>
-        `;
-    } else {
-        item.innerHTML = `
-            <div class="issue-number-medium">#${issue.issue_number}</div>
-            <div class="issue-buttons">
-                <button class="btn-status-issue" onclick="event.stopPropagation(); toggleIssueRead(${issue.id}, ${!issue.is_read})" title="${issue.is_read ? 'Marcar como não lida' : 'Marcar como lida'}">
-                    ${issue.is_read ? '✓' : '○'}
-                </button>
-                <button class="btn-delete-issue" onclick="event.stopPropagation(); deleteIssue(${issue.id})" title="Deletar edição">
-                    🗑️
-                </button>
-            </div>
-        `;
-    }
-    
-    return item;
+    // Debounce search
+    clearTimeout(searchTimeout);
+    searchTimeout = setTimeout(() => {
+        loadSeries(query);
+    }, 300);
 }
 
-async function toggleIssueRead(issueId, isRead) {
-    try {
-        await fetchAPI(`/issues/${issueId}?is_read=${isRead}`, {
-            method: 'PUT',
-        });
-        
-        loadSeriesDetail(currentSeriesId);
-        loadStats();
-    } catch (error) {
-        console.error('Error toggling issue:', error);
-    }
+function clearSearch() {
+    document.getElementById('search-input').value = '';
+    document.getElementById('search-clear').style.display = 'none';
+    loadSeries();
 }
 
-async function deleteIssue(issueId) {
-    if (!confirm('Tem certeza que deseja deletar esta edição?')) {
-        return;
-    }
-    
-    try {
-        await fetchAPI(`/issues/${issueId}`, {
-            method: 'DELETE',
-        });
-        
-        loadSeriesDetail(currentSeriesId);
-        loadStats();
-    } catch (error) {
-        console.error('Error deleting issue:', error);
-    }
-}
-
-// Series Modal
+// Modal Functions
 function openModal() {
-    document.getElementById('modal-title').textContent = 'Nova HQ';
+    document.getElementById('series-modal').classList.add('active');
     document.getElementById('series-form').reset();
     document.getElementById('series-id').value = '';
-    document.getElementById('series_type').value = 'em_andamento'; // Valor padrão
-    document.getElementById('series-modal').classList.add('show');
+    document.getElementById('modal-title').textContent = 'Nova HQ';
 }
 
 function closeModal() {
-    document.getElementById('series-modal').classList.remove('show');
+    document.getElementById('series-modal').classList.remove('active');
 }
 
-function editSeries() {
-    editSeriesById(currentSeriesId);
+function openAddIssueModal() {
+    document.getElementById('issue-modal').classList.add('active');
+    document.getElementById('issue-form').reset();
 }
 
-async function editSeriesById(seriesId) {
-    try {
-        const series = await fetchAPI(`/series/${seriesId}`);
-        
-        document.getElementById('modal-title').textContent = 'Editar HQ';
-        document.getElementById('series-id').value = series.id;
-        document.getElementById('title').value = series.title || '';
-        document.getElementById('author').value = series.author || '';
-        document.getElementById('publisher').value = series.publisher || '';
-        document.getElementById('read_issues').value = series.read_issues || 0;
-        document.getElementById('downloaded_issues').value = series.downloaded_issues || 0;
-        document.getElementById('total_issues').value = series.total_issues || 0;
-        document.getElementById('is_completed').checked = series.is_completed || false;
-        document.getElementById('series_type').value = series.series_type || 'em_andamento';
-        document.getElementById('cover_url').value = series.cover_url || '';
-        document.getElementById('notes').value = series.notes || '';
-        
-        document.getElementById('series-modal').classList.add('show');
-    } catch (error) {
-        console.error('Error loading series:', error);
-    }
+function closeIssueModal() {
+    document.getElementById('issue-modal').classList.remove('active');
 }
 
+// Form Submissions
 async function submitSeriesForm(event) {
     event.preventDefault();
     
     const seriesId = document.getElementById('series-id').value;
-    
     const formData = {
         title: document.getElementById('title').value,
         author: document.getElementById('author').value || null,
         publisher: document.getElementById('publisher').value || null,
-        read_issues: parseInt(document.getElementById('read_issues').value) || 0,
-        downloaded_issues: parseInt(document.getElementById('downloaded_issues').value) || 0,
         total_issues: parseInt(document.getElementById('total_issues').value) || 0,
+        downloaded_issues: parseInt(document.getElementById('downloaded_issues').value) || 0,
+        read_issues: parseInt(document.getElementById('read_issues').value) || 0,
         is_completed: document.getElementById('is_completed').checked,
         series_type: document.getElementById('series_type').value,
         cover_url: document.getElementById('cover_url').value || null,
@@ -507,54 +423,27 @@ async function submitSeriesForm(event) {
         }
         
         closeModal();
-        loadSeries();
-        loadStats();
         
-        if (currentSeriesId) {
+        if (currentSeriesId && seriesId === currentSeriesId.toString()) {
             loadSeriesDetail(currentSeriesId);
+        } else {
+            loadSeries();
         }
-    } catch (error) {
-        console.error('Error saving series:', error);
-    }
-}
-
-async function deleteSeries(seriesId, title) {
-    if (!confirm(`Tem certeza que deseja deletar "${title}" e todas as suas edições?`)) {
-        return;
-    }
-    
-    try {
-        await fetchAPI(`/series/${seriesId}`, {
-            method: 'DELETE',
-        });
-        
-        loadSeries();
         loadStats();
     } catch (error) {
-        console.error('Error deleting series:', error);
+        console.error('Error submitting form:', error);
+        alert('Erro ao salvar HQ: ' + error.message);
     }
-}
-
-// Issue Modal
-function openAddIssueModal() {
-    document.getElementById('issue-form').reset();
-    document.getElementById('issue-modal').classList.add('show');
-}
-
-function closeIssueModal() {
-    document.getElementById('issue-modal').classList.remove('show');
 }
 
 async function submitIssueForm(event) {
     event.preventDefault();
     
-    const issueNumber = parseInt(document.getElementById('issue_number').value);
-    const isRead = document.getElementById('is_read').checked;
+    if (!currentSeriesId) return;
     
     const formData = {
-        issue_number: issueNumber,
-        is_read: isRead,
-        is_downloaded: true,
+        issue_number: parseInt(document.getElementById('issue_number').value),
+        is_read: document.getElementById('is_read').checked,
     };
     
     try {
@@ -568,44 +457,76 @@ async function submitIssueForm(event) {
         loadStats();
     } catch (error) {
         console.error('Error adding issue:', error);
-        alert('Erro ao adicionar edição. Verifique se o número já não existe.');
+        alert('Erro ao adicionar edição: ' + error.message);
     }
 }
 
-// Função para exportar dados para Excel
-async function exportToExcel() {
-    const btn = event.target;
-    const originalText = btn.innerHTML;
-    btn.innerHTML = '⏳ Exportando...';
-    btn.disabled = true;
+// Edit/Delete Functions
+async function editSeriesById(seriesId) {
+    try {
+        const series = await fetchAPI(`/series/${seriesId}`);
+        
+        document.getElementById('series-id').value = series.id;
+        document.getElementById('modal-title').textContent = 'Editar HQ';
+        document.getElementById('title').value = series.title;
+        document.getElementById('author').value = series.author || '';
+        document.getElementById('publisher').value = series.publisher || '';
+        document.getElementById('total_issues').value = series.total_issues;
+        document.getElementById('downloaded_issues').value = series.downloaded_issues;
+        document.getElementById('read_issues').value = series.read_issues;
+        document.getElementById('is_completed').checked = series.is_completed;
+        document.getElementById('series_type').value = series.series_type || 'em_andamento';
+        document.getElementById('cover_url').value = series.cover_url || '';
+        document.getElementById('notes').value = series.notes || '';
+        
+        openModal();
+    } catch (error) {
+        console.error('Error loading series for edit:', error);
+    }
+}
+
+function editSeries() {
+    if (currentSeriesId) {
+        editSeriesById(currentSeriesId);
+    }
+}
+
+async function deleteSeries(seriesId, title) {
+    if (!confirm(`Tem certeza que deseja deletar "${title}"?`)) {
+        return;
+    }
     
     try {
-        const response = await fetch(`${API_URL}/export-excel`, {
-            method: 'POST'
+        await fetchAPI(`/series/${seriesId}`, {
+            method: 'DELETE',
         });
         
-        if (!response.ok) {
-            throw new Error('Erro ao exportar dados');
+        if (currentSeriesId === seriesId) {
+            goToHome();
+        } else {
+            loadSeries();
+            loadStats();
         }
-        
-        const blob = await response.blob();
-        const url = window.URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `Planilha_de_HQs_${new Date().toISOString().split('T')[0]}.xlsx`;
-        document.body.appendChild(a);
-        a.click();
-        window.URL.revokeObjectURL(url);
-        document.body.removeChild(a);
-        
-        alert('✓ Planilha exportada com sucesso!');
     } catch (error) {
-        console.error('Error exporting:', error);
-        alert('❌ Erro ao exportar planilha. Tente novamente.');
-    } finally {
-        btn.innerHTML = originalText;
-        btn.disabled = false;
+        console.error('Error deleting series:', error);
+        alert('Erro ao deletar HQ: ' + error.message);
     }
 }
 
-console.log('✓ HQ Manager v2.1 carregado com sucesso!');
+async function toggleIssueRead(issueId, isRead) {
+    try {
+        await fetchAPI(`/issues/${issueId}`, {
+            method: 'PUT',
+            body: JSON.stringify({ is_read: isRead }),
+        });
+        
+        if (currentSeriesId) {
+            loadSeriesDetail(currentSeriesId);
+            loadStats();
+        }
+    } catch (error) {
+        console.error('Error toggling issue:', error);
+    }
+}
+
+console.log('✅ Script carregado! API URL:', API_URL);

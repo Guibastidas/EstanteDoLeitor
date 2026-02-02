@@ -4,12 +4,12 @@ from fastapi.responses import FileResponse
 from pydantic import BaseModel
 from typing import Optional, List
 from datetime import datetime
-from sqlalchemy import create_engine, Column, Integer, String, Text
+from sqlalchemy import create_engine, Column, Integer, String, Text, select
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, Session
 import os
 
-app = FastAPI(title="Estante do Leitor API", version="3.0")
+app = FastAPI(title="Estante do Leitor API", version="3.1")
 
 # Configuração CORS
 app.add_middleware(
@@ -127,16 +127,17 @@ async def root():
         return FileResponse("index.html")
     return {
         "message": "Estante do Leitor API", 
-        "version": "3.0",
+        "version": "3.1",
         "status": "online",
         "database": "PostgreSQL (Railway)" if os.getenv("DATABASE_URL") else "SQLite (Local)"
     }
 
 @app.get("/health")
 async def health_check(db: Session = Depends(get_db)):
-    """Health check para o Railway"""
+    """Health check para o Railway - CORRIGIDO para SQLAlchemy 2.0"""
     try:
-        db.execute("SELECT 1")
+        # Usar select() corretamente no SQLAlchemy 2.0
+        db.execute(select(Comic).limit(1))
         db_type = "PostgreSQL (Railway)" if os.getenv("DATABASE_URL") else "SQLite (Local)"
         return {
             "status": "healthy",
