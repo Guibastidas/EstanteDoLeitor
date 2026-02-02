@@ -436,7 +436,7 @@ function openModal() {
         console.error('❌ Modal não encontrado!');
         return;
     }
-    modal.classList.add('active');
+    modal.classList.add('show');
     document.getElementById('series-form').reset();
     document.getElementById('series-id').value = '';
     document.getElementById('modal-title').textContent = 'Nova HQ';
@@ -444,7 +444,7 @@ function openModal() {
 
 function closeModal() {
     console.log('❌ Fechando modal de série');
-    document.getElementById('series-modal').classList.remove('active');
+    document.getElementById('series-modal').classList.remove('show');
 }
 
 function openAddIssueModal() {
@@ -454,13 +454,13 @@ function openAddIssueModal() {
         console.error('❌ Modal de edição não encontrado!');
         return;
     }
-    modal.classList.add('active');
+    modal.classList.add('show');
     document.getElementById('issue-form').reset();
 }
 
 function closeIssueModal() {
     console.log('❌ Fechando modal de edição');
-    document.getElementById('issue-modal').classList.remove('active');
+    document.getElementById('issue-modal').classList.remove('show');
 }
 
 // Form Submissions
