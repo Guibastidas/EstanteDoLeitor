@@ -331,6 +331,25 @@ body {
     padding: 1rem;
 }
 
+.comic-progress-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.5rem;
+    font-size: 0.75rem;
+    color: var(--color-text-secondary);
+}
+
+.comic-progress-header .progress-label {
+    font-weight: 500;
+    margin-bottom: 0;
+}
+
+.comic-progress-header .progress-value {
+    font-weight: 600;
+    color: var(--color-text);
+}
+
 .comic-progress {
     margin-bottom: 0.75rem;
 }
@@ -383,6 +402,35 @@ body {
     -webkit-box-orient: vertical;
     overflow: hidden;
     line-height: 1.4;
+}
+
+.comic-publisher {
+    font-size: 0.813rem;
+    color: var(--color-text-secondary);
+    margin-bottom: 0.75rem;
+}
+
+.comic-stats {
+    display: flex;
+    gap: 0.75rem;
+    margin-bottom: 0.75rem;
+    padding: 0.5rem;
+    background: var(--color-surface);
+    border-radius: var(--radius);
+    font-size: 0.75rem;
+    color: var(--color-text-secondary);
+    flex-wrap: wrap;
+}
+
+.comic-stats span {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+}
+
+.comic-stats strong {
+    color: var(--color-text);
+    font-weight: 600;
 }
 
 .comic-meta {
