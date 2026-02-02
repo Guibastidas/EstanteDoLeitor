@@ -354,10 +354,11 @@ function displayIssues(issues, totalBaixado, totalPublicado) {
     const issuesList = document.getElementById('issues-list');
     const emptyIssues = document.getElementById('empty-issues');
     
-    console.log('📖 Exibindo', issues.length, 'edições');
+    console.log('📖 Exibindo edições');
     console.log('📊 Total baixado:', totalBaixado, '| Total publicado:', totalPublicado);
     
-    if (!issues || issues.length === 0) {
+    // Se não tem total publicado, mostrar empty state
+    if (!totalPublicado || totalPublicado === 0) {
         issuesList.innerHTML = '';
         emptyIssues.style.display = 'block';
         return;
@@ -367,14 +368,14 @@ function displayIssues(issues, totalBaixado, totalPublicado) {
     issuesList.innerHTML = '';
     
     // Criar um Set com os números das edições que existem
-    const existingNumbers = new Set(issues.map(i => i.issue_number));
+    const existingNumbers = new Set((issues || []).map(i => i.issue_number));
     
     // Criar todas as edições (existentes + faltantes) até total_issues
     const allIssueCards = [];
     
     // Adicionar todas as edições até o total publicado
     for (let numero = 1; numero <= totalPublicado; numero++) {
-        const issue = issues.find(i => i.issue_number === numero);
+        const issue = (issues || []).find(i => i.issue_number === numero);
         
         const issueCard = document.createElement('div');
         
@@ -601,14 +602,48 @@ function closeModal() {
 }
 
 function openAddIssueModal() {
-    console.log('📝 Abrindo modal de edição');
-    const modal = document.getElementById('issue-modal');
-    if (!modal) {
-        console.error('❌ Modal de edição não encontrado!');
+    // NOVO COMPORTAMENTO: Aumentar total_issues da série
+    if (!currentSeriesId) {
+        console.error('❌ Nenhuma série selecionada!');
         return;
     }
-    modal.classList.add('show');
-    document.getElementById('issue-form').reset();
+    
+    const totalAtual = parseInt(document.getElementById('detail-total').textContent);
+    const novoTotal = totalAtual + 1;
+    
+    if (confirm(`Aumentar o total de edições de ${totalAtual} para ${novoTotal}?`)) {
+        aumentarTotalIssues(novoTotal);
+    }
+}
+
+async function aumentarTotalIssues(novoTotal) {
+    if (!currentSeriesId) return;
+    
+    try {
+        console.log(`📈 Aumentando total_issues para ${novoTotal}`);
+        
+        // Buscar série atual
+        const series = await fetchAPI(`/series/${currentSeriesId}`);
+        
+        // Atualizar total_issues
+        await fetchAPI(`/series/${currentSeriesId}`, {
+            method: 'PUT',
+            body: JSON.stringify({
+                ...series,
+                total_issues: novoTotal
+            })
+        });
+        
+        console.log('✅ Total atualizado!');
+        
+        // Recarregar
+        loadSeriesDetail(currentSeriesId);
+        loadStats();
+        loadSeries();
+    } catch (error) {
+        console.error('Error updating total:', error);
+        alert('Erro ao atualizar total de edições: ' + error.message);
+    }
 }
 
 function closeIssueModal() {
