@@ -633,6 +633,69 @@ body {
     color: var(--color-text-secondary);
 }
 
+/* Checkbox Icon - apenas ícone, sem texto */
+.checkbox-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    position: relative;
+    width: 32px;
+    height: 32px;
+}
+
+.checkbox-icon input[type="checkbox"] {
+    position: absolute;
+    opacity: 0;
+    cursor: pointer;
+    width: 100%;
+    height: 100%;
+}
+
+.checkbox-icon .checkmark {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    border: 2px solid var(--color-border);
+    border-radius: 4px;
+    background: var(--color-bg);
+    transition: var(--transition);
+    font-size: 14px;
+    color: white;
+}
+
+.checkbox-icon input[type="checkbox"]:checked ~ .checkmark {
+    background: var(--color-success);
+    border-color: var(--color-success);
+}
+
+.checkbox-icon:hover .checkmark {
+    border-color: var(--color-primary);
+}
+
+.checkbox-icon input[type="checkbox"]:checked:hover ~ .checkmark {
+    background: var(--color-success);
+    border-color: var(--color-success);
+    opacity: 0.9;
+}
+
+/* Botão de deletar para edições */
+.btn-delete {
+    padding: 0.4rem 0.6rem;
+    font-size: 1rem;
+    opacity: 0.7;
+    transition: var(--transition);
+}
+
+.btn-delete:hover {
+    opacity: 1;
+    background: var(--color-danger);
+    color: white;
+}
+
+
 /* Mantém issue-item para compatibilidade */
 .issue-item {
     background: var(--color-surface);

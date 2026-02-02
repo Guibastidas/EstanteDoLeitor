@@ -1,5 +1,4 @@
-// API Configuration - CORRIGIDO para funcionar no Railway
-// Usa URL relativa que funciona tanto local quanto no Railway
+// API Configuration
 const API_URL = window.location.origin;
 
 // State
@@ -10,6 +9,8 @@ let searchTimeout = null;
 
 // Initialize app
 document.addEventListener('DOMContentLoaded', () => {
+    console.log('🚀 Iniciando aplicação...');
+    console.log('📡 API URL:', API_URL);
     loadSeries();
     loadStats();
 });
@@ -35,6 +36,8 @@ function createSeriesTypeBadge(seriesType) {
 // API Functions
 async function fetchAPI(endpoint, options = {}) {
     try {
+        console.log('🔄 API Request:', endpoint, options.method || 'GET');
+        
         const response = await fetch(`${API_URL}${endpoint}`, {
             ...options,
             headers: {
@@ -43,14 +46,23 @@ async function fetchAPI(endpoint, options = {}) {
             },
         });
         
+        console.log('📥 API Response:', response.status, endpoint);
+        
         if (!response.ok) {
-            const error = await response.json();
-            throw new Error(error.detail || `HTTP error! status: ${response.status}`);
+            let errorMessage = `HTTP ${response.status}`;
+            try {
+                const error = await response.json();
+                errorMessage = error.detail || errorMessage;
+            } catch (e) {
+                // Se não conseguir ler JSON, usa mensagem padrão
+            }
+            throw new Error(errorMessage);
         }
         
-        return await response.json();
+        const data = await response.json();
+        return data;
     } catch (error) {
-        console.error('API Error:', error);
+        console.error('❌ API Error:', error);
         throw error;
     }
 }
@@ -58,23 +70,29 @@ async function fetchAPI(endpoint, options = {}) {
 // Load Functions
 async function loadSeries(filterQuery = '') {
     try {
+        console.log('📚 Carregando séries...', filterQuery ? `(filtro: ${filterQuery})` : '');
         const endpoint = filterQuery ? `/series?search=${encodeURIComponent(filterQuery)}` : '/series';
         allSeries = await fetchAPI(endpoint);
+        console.log(`✅ ${allSeries.length} séries carregadas`);
         displaySeries();
     } catch (error) {
         console.error('Error loading series:', error);
+        alert('Erro ao carregar HQs. Verifique se o servidor está online.');
         showEmptyState();
     }
 }
 
 async function loadStats() {
     try {
+        console.log('📊 Carregando estatísticas...');
         const stats = await fetchAPI('/stats');
         
         document.getElementById('stat-total').textContent = stats.total;
         document.getElementById('stat-para-ler').textContent = stats.para_ler;
         document.getElementById('stat-lendo').textContent = stats.lendo;
         document.getElementById('stat-concluidas').textContent = stats.concluidas;
+        
+        console.log('✅ Estatísticas atualizadas:', stats);
     } catch (error) {
         console.error('Error loading stats:', error);
     }
@@ -207,6 +225,8 @@ function showEmptyState() {
 
 // Navigation
 function goToHome() {
+    console.log('🏠 Voltando para home');
+    
     // Hide detail view
     document.getElementById('detail-view').style.display = 'none';
     document.getElementById('home-view').style.display = 'block';
@@ -225,6 +245,7 @@ function goToHome() {
 }
 
 async function goToDetail(seriesId) {
+    console.log('📖 Abrindo detalhes da série:', seriesId);
     currentSeriesId = seriesId;
     
     // Hide home view
@@ -244,13 +265,14 @@ async function goToDetail(seriesId) {
 
 async function loadSeriesDetail(seriesId) {
     try {
+        console.log('📥 Carregando detalhes da série:', seriesId);
         const series = await fetchAPI(`/series/${seriesId}`);
         const issues = await fetchAPI(`/series/${seriesId}/issues`);
         
-        // Título
-        document.getElementById('detail-title').textContent = series.title;
+        console.log('✅ Série carregada:', series);
+        console.log('✅ Edições carregadas:', issues.length);
         
-        // Badge de tipo
+        // Título
         const typeInfo = getSeriesTypeLabel(series.series_type || 'em_andamento');
         const titleElement = document.getElementById('detail-title');
         titleElement.innerHTML = `
@@ -295,6 +317,8 @@ async function loadSeriesDetail(seriesId) {
         displayIssues(issues);
     } catch (error) {
         console.error('Error loading series detail:', error);
+        alert('Erro ao carregar detalhes da série.');
+        goToHome();
     }
 }
 
@@ -322,10 +346,13 @@ function displayIssues(issues) {
                 ${issue.date_read ? `<div class="issue-date">Lida em ${new Date(issue.date_read).toLocaleDateString('pt-BR')}</div>` : ''}
             </div>
             <div class="issue-actions">
-                <label class="checkbox-label">
+                <label class="checkbox-icon" title="${issue.is_read ? 'Marcar como não lida' : 'Marcar como lida'}">
                     <input type="checkbox" ${issue.is_read ? 'checked' : ''} onchange="toggleIssueRead(${issue.id}, this.checked)">
-                    <span>Lida</span>
+                    <span class="checkmark">${issue.is_read ? '✓' : ''}</span>
                 </label>
+                <button class="btn-icon btn-delete" onclick="deleteIssue(${issue.id}, ${issue.issue_number})" title="Deletar edição">
+                    🗑️
+                </button>
             </div>
         `;
         
@@ -335,6 +362,7 @@ function displayIssues(issues) {
 
 // Filter
 function filterSeries(filter) {
+    console.log('🔍 Filtrando por:', filter);
     currentFilter = filter;
     
     // Update active tab
@@ -360,11 +388,13 @@ function handleSearch() {
     // Debounce search
     clearTimeout(searchTimeout);
     searchTimeout = setTimeout(() => {
+        console.log('🔍 Buscando:', query);
         loadSeries(query);
     }, 300);
 }
 
 function clearSearch() {
+    console.log('🔍 Limpando busca');
     document.getElementById('search-input').value = '';
     document.getElementById('search-clear').style.display = 'none';
     loadSeries();
@@ -372,6 +402,7 @@ function clearSearch() {
 
 // Modal Functions
 function openModal() {
+    console.log('📝 Abrindo modal de série');
     document.getElementById('series-modal').classList.add('active');
     document.getElementById('series-form').reset();
     document.getElementById('series-id').value = '';
@@ -379,21 +410,26 @@ function openModal() {
 }
 
 function closeModal() {
+    console.log('❌ Fechando modal de série');
     document.getElementById('series-modal').classList.remove('active');
 }
 
 function openAddIssueModal() {
+    console.log('📝 Abrindo modal de edição');
     document.getElementById('issue-modal').classList.add('active');
     document.getElementById('issue-form').reset();
 }
 
 function closeIssueModal() {
+    console.log('❌ Fechando modal de edição');
     document.getElementById('issue-modal').classList.remove('active');
 }
 
 // Form Submissions
 async function submitSeriesForm(event) {
     event.preventDefault();
+    
+    console.log('💾 Salvando série...');
     
     const seriesId = document.getElementById('series-id').value;
     const formData = {
@@ -411,17 +447,20 @@ async function submitSeriesForm(event) {
     
     try {
         if (seriesId) {
+            console.log('📝 Atualizando série:', seriesId);
             await fetchAPI(`/series/${seriesId}`, {
                 method: 'PUT',
                 body: JSON.stringify(formData),
             });
         } else {
+            console.log('➕ Criando nova série');
             await fetchAPI('/series', {
                 method: 'POST',
                 body: JSON.stringify(formData),
             });
         }
         
+        console.log('✅ Série salva!');
         closeModal();
         
         if (currentSeriesId && seriesId === currentSeriesId.toString()) {
@@ -441,6 +480,8 @@ async function submitIssueForm(event) {
     
     if (!currentSeriesId) return;
     
+    console.log('💾 Adicionando edição...');
+    
     const formData = {
         issue_number: parseInt(document.getElementById('issue_number').value),
         is_read: document.getElementById('is_read').checked,
@@ -452,6 +493,7 @@ async function submitIssueForm(event) {
             body: JSON.stringify(formData),
         });
         
+        console.log('✅ Edição adicionada!');
         closeIssueModal();
         loadSeriesDetail(currentSeriesId);
         loadStats();
@@ -464,6 +506,7 @@ async function submitIssueForm(event) {
 // Edit/Delete Functions
 async function editSeriesById(seriesId) {
     try {
+        console.log('✏️ Editando série:', seriesId);
         const series = await fetchAPI(`/series/${seriesId}`);
         
         document.getElementById('series-id').value = series.id;
@@ -482,6 +525,7 @@ async function editSeriesById(seriesId) {
         openModal();
     } catch (error) {
         console.error('Error loading series for edit:', error);
+        alert('Erro ao carregar série para edição.');
     }
 }
 
@@ -497,9 +541,12 @@ async function deleteSeries(seriesId, title) {
     }
     
     try {
+        console.log('🗑️ Deletando série:', seriesId);
         await fetchAPI(`/series/${seriesId}`, {
             method: 'DELETE',
         });
+        
+        console.log('✅ Série deletada!');
         
         if (currentSeriesId === seriesId) {
             goToHome();
@@ -513,8 +560,32 @@ async function deleteSeries(seriesId, title) {
     }
 }
 
+async function deleteIssue(issueId, issueNumber) {
+    if (!confirm(`Tem certeza que deseja deletar a edição #${issueNumber}?`)) {
+        return;
+    }
+    
+    try {
+        console.log('🗑️ Deletando edição:', issueId);
+        await fetchAPI(`/issues/${issueId}`, {
+            method: 'DELETE',
+        });
+        
+        console.log('✅ Edição deletada!');
+        
+        if (currentSeriesId) {
+            loadSeriesDetail(currentSeriesId);
+            loadStats();
+        }
+    } catch (error) {
+        console.error('Error deleting issue:', error);
+        alert('Erro ao deletar edição: ' + error.message);
+    }
+}
+
 async function toggleIssueRead(issueId, isRead) {
     try {
+        console.log('✓ Marcando edição como', isRead ? 'lida' : 'não lida');
         await fetchAPI(`/issues/${issueId}`, {
             method: 'PUT',
             body: JSON.stringify({ is_read: isRead }),
@@ -526,6 +597,7 @@ async function toggleIssueRead(issueId, isRead) {
         }
     } catch (error) {
         console.error('Error toggling issue:', error);
+        alert('Erro ao atualizar edição.');
     }
 }
 
