@@ -1,6 +1,6 @@
 """
-HQ Manager - Backend FastAPI para PostgreSQL (Railway)
-Sistema de gerenciamento de HQs usando tabela COMICS
+HQ Manager - Backend FastAPI com PostgreSQL
+Sistema de gerenciamento de HQs com tabelas SERIES e ISSUES
 """
 
 import os
@@ -8,36 +8,31 @@ from datetime import datetime
 from typing import List, Optional
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import FastAPI, HTTPException, Query, Depends
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse, Response
 from pydantic import BaseModel
-from sqlalchemy import create_engine, Column, Integer, String, Boolean, Text, DateTime, func
+from sqlalchemy import create_engine, Column, Integer, String, Boolean, Text, ForeignKey, func
 from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker, Session
+from sqlalchemy.orm import sessionmaker, Session, relationship
 
 # ==================== CONFIGURAÇÃO DO BANCO ====================
 
-# Pegar DATABASE_URL do ambiente (Railway)
 DATABASE_URL = os.getenv("DATABASE_URL")
 
-# Se não tiver DATABASE_URL, usar SQLite local
 if not DATABASE_URL:
     DATABASE_URL = "sqlite:///./hq_manager.db"
     print("⚠️  Usando SQLite local (desenvolvimento)")
 else:
-    # Corrigir URL do PostgreSQL se necessário
     if DATABASE_URL.startswith("postgres://"):
         DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
     print(f"✅ Conectando ao PostgreSQL (Railway)")
 
-# Criar engine
 engine = create_engine(
     DATABASE_URL,
     pool_pre_ping=True,
     pool_recycle=300,
-    echo=False  # True para debug SQL
+    echo=False
 )
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
@@ -45,37 +40,56 @@ Base = declarative_base()
 
 # ==================== MODELOS DO BANCO ====================
 
-class ComicDB(Base):
-    """Modelo de HQ no banco de dados - TABELA COMICS"""
-    __tablename__ = "comics"
+class SeriesDB(Base):
+    """Modelo de Série de HQ no banco de dados"""
+    __tablename__ = "series"
     
     id = Column(Integer, primary_key=True, index=True)
     title = Column(String(500), nullable=False, index=True)
     author = Column(String(200))
     publisher = Column(String(200))
-    volume = Column(Integer)
-    issue = Column(Integer, default=0)  # total_issues / downloaded_issues
-    current_issue = Column(Integer, default=0)  # read_issues
-    status = Column(String(50), nullable=False, default='para_ler')
+    total_issues = Column(Integer, default=0)
+    downloaded_issues = Column(Integer, default=0)
+    read_issues = Column(Integer, default=0)
+    is_completed = Column(Boolean, default=False)
+    series_type = Column(String(50), default='em_andamento')
     cover_url = Column(Text)
     notes = Column(Text)
     date_added = Column(String(50), nullable=False)
-    date_completed = Column(String(50))
+    date_updated = Column(String(50))
+    
+    # Relacionamento
+    issues = relationship("IssueDB", back_populates="series", cascade="all, delete-orphan")
 
 
-# CRIAR TABELAS AUTOMATICAMENTE SE NÃO EXISTIREM
-print("🔍 Verificando se tabelas existem...")
+class IssueDB(Base):
+    """Modelo de Edição de HQ no banco de dados"""
+    __tablename__ = "issues"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    series_id = Column(Integer, ForeignKey("series.id", ondelete="CASCADE"), nullable=False)
+    issue_number = Column(Integer, nullable=False)
+    title = Column(String(500))
+    is_read = Column(Boolean, default=False)
+    is_downloaded = Column(Boolean, default=True)
+    date_added = Column(String(50), nullable=False)
+    date_read = Column(String(50))
+    
+    # Relacionamento
+    series = relationship("SeriesDB", back_populates="issues")
+
+
+# CRIAR TABELAS AUTOMATICAMENTE
+print("📝 Verificando se tabelas existem...")
 try:
     Base.metadata.create_all(bind=engine)
     print("✅ Tabelas criadas/verificadas com sucesso!")
 except Exception as e:
     print(f"⚠️ Erro ao criar tabelas: {e}")
-    print("   O sistema tentará funcionar mesmo assim...")
-
 
 # ==================== MODELOS PYDANTIC (API) ====================
 
-class ComicCreate(BaseModel):
+class SeriesCreate(BaseModel):
     title: str
     author: Optional[str] = None
     publisher: Optional[str] = None
@@ -88,8 +102,52 @@ class ComicCreate(BaseModel):
     notes: Optional[str] = None
 
 
-class ComicUpdate(ComicCreate):
+class SeriesUpdate(SeriesCreate):
     pass
+
+
+class SeriesResponse(BaseModel):
+    id: int
+    title: str
+    author: Optional[str]
+    publisher: Optional[str]
+    total_issues: int
+    downloaded_issues: int
+    read_issues: int
+    is_completed: bool
+    series_type: str
+    cover_url: Optional[str]
+    notes: Optional[str]
+    status: str
+    date_added: str
+    date_updated: Optional[str]
+    
+    class Config:
+        from_attributes = True
+
+
+class IssueCreate(BaseModel):
+    issue_number: int
+    title: Optional[str] = None
+    is_read: bool = False
+
+
+class IssueUpdate(BaseModel):
+    is_read: bool
+
+
+class IssueResponse(BaseModel):
+    id: int
+    series_id: int
+    issue_number: int
+    title: Optional[str]
+    is_read: bool
+    is_downloaded: bool
+    date_added: str
+    date_read: Optional[str]
+    
+    class Config:
+        from_attributes = True
 
 
 class Stats(BaseModel):
@@ -104,15 +162,10 @@ class Stats(BaseModel):
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Gerenciar inicialização e finalização do app"""
-    # Startup
     print("🚀 Iniciando HQ Manager...")
-    print(f"📊 Criando tabelas no banco de dados...")
     Base.metadata.create_all(bind=engine)
-    print("✅ Tabelas criadas/verificadas!")
-    
+    print("✅ Banco pronto!")
     yield
-    
-    # Shutdown
     print("👋 Encerrando HQ Manager...")
 
 
@@ -120,30 +173,66 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(
     title="HQ Manager API",
-    description="API para gerenciamento de HQs - Tabela COMICS",
-    version="2.1.0",
+    description="API para gerenciamento de HQs",
+    version="3.0.0",
     lifespan=lifespan
 )
 
-# CORS - permitir requisições do frontend
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Em produção, especifique os domínios
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# Servir arquivos estáticos (CSS, JS, etc)
-# Isso deve vir ANTES das rotas
-import os
-from pathlib import Path
+# ==================== DEPENDENCY ====================
 
-# Verificar se os arquivos existem
-current_dir = Path(__file__).parent
-static_files = ["styles.css", "script.js", "script-extensions.js", "index.html"]
+def get_db():
+    """Dependency para obter sessão do banco"""
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
 
-# Montar arquivos estáticos individualmente para garantir que funcionem
+
+# ==================== FUNÇÕES AUXILIARES ====================
+
+def calculate_status(read_issues: int, total_issues: int) -> str:
+    """Calcular status baseado no progresso"""
+    if read_issues == 0:
+        return "para_ler"
+    elif read_issues >= total_issues and total_issues > 0:
+        return "concluida"
+    else:
+        return "lendo"
+
+
+def series_to_response(series: SeriesDB) -> dict:
+    """Converter SeriesDB para resposta da API"""
+    status = calculate_status(series.read_issues, series.total_issues)
+    
+    return {
+        "id": series.id,
+        "title": series.title,
+        "author": series.author,
+        "publisher": series.publisher,
+        "total_issues": series.total_issues,
+        "downloaded_issues": series.downloaded_issues,
+        "read_issues": series.read_issues,
+        "is_completed": series.is_completed,
+        "series_type": series.series_type,
+        "cover_url": series.cover_url,
+        "notes": series.notes,
+        "status": status,
+        "date_added": series.date_added,
+        "date_updated": series.date_updated
+    }
+
+
+# ==================== SERVIR ARQUIVOS ESTÁTICOS ====================
+
 @app.get("/styles.css")
 async def get_styles():
     """Servir arquivo CSS"""
@@ -154,6 +243,7 @@ async def get_styles():
     except FileNotFoundError:
         raise HTTPException(status_code=404, detail="CSS not found")
 
+
 @app.get("/script.js")
 async def get_script():
     """Servir arquivo JavaScript principal"""
@@ -163,6 +253,7 @@ async def get_script():
         return Response(content=content, media_type="application/javascript")
     except FileNotFoundError:
         raise HTTPException(status_code=404, detail="JS not found")
+
 
 @app.get("/script-extensions.js")
 async def get_script_extensions():
@@ -175,55 +266,6 @@ async def get_script_extensions():
         raise HTTPException(status_code=404, detail="JS extensions not found")
 
 
-# ==================== FUNÇÕES AUXILIARES ====================
-
-def get_db():
-    """Dependency para obter sessão do banco"""
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
-
-
-def calculate_status(read_issues: int, total_issues: int) -> str:
-    """Calcular status baseado no progresso de leitura"""
-    if read_issues == 0:
-        return "para_ler"
-    elif read_issues >= total_issues and total_issues > 0:
-        return "concluida"
-    else:
-        return "lendo"
-
-
-def comic_db_to_api(comic_db: ComicDB) -> dict:
-    """Converter ComicDB para formato da API (compatível com frontend)"""
-    # Usar issue como total_issues e current_issue como read_issues
-    total_issues = comic_db.issue or 0
-    read_issues = comic_db.current_issue or 0
-    downloaded_issues = comic_db.issue or 0
-    
-    # Calcular status
-    status = calculate_status(read_issues, total_issues)
-    
-    return {
-        "id": comic_db.id,
-        "title": comic_db.title,
-        "author": comic_db.author,
-        "publisher": comic_db.publisher,
-        "total_issues": total_issues,
-        "downloaded_issues": downloaded_issues,
-        "read_issues": read_issues,
-        "is_completed": status == "concluida",
-        "series_type": "em_andamento",  # padrão
-        "cover_url": comic_db.cover_url,
-        "notes": comic_db.notes,
-        "status": status,
-        "date_added": comic_db.date_added,
-        "date_updated": comic_db.date_completed
-    }
-
-
 # ==================== ENDPOINTS ====================
 
 @app.get("/")
@@ -231,12 +273,13 @@ async def root():
     """Servir página inicial"""
     return FileResponse("index.html")
 
+
 @app.get("/api")
 async def api_root():
     """Endpoint de informação da API"""
     return {
-        "message": "HQ Manager API - Usando tabela COMICS",
-        "version": "2.1.0",
+        "message": "HQ Manager API",
+        "version": "3.0.0",
         "status": "online"
     }
 
@@ -247,40 +290,39 @@ async def health_check():
     return {"status": "healthy"}
 
 
-# ==================== ENDPOINTS DE SÉRIES (usando tabela comics) ====================
+# ==================== ENDPOINTS DE SÉRIES ====================
 
 @app.get("/series")
 async def list_series(
     search: Optional[str] = Query(None),
-    status_filter: Optional[str] = Query(None, alias="status")
+    status: Optional[str] = Query(None),
+    db: Session = Depends(get_db)
 ):
-    """Listar todas as HQs (series) com filtros opcionais"""
-    db = next(get_db())
-    
+    """Listar todas as séries com filtros opcionais"""
     try:
-        query = db.query(ComicDB)
+        query = db.query(SeriesDB)
         
         # Filtro de busca
         if search:
             search_pattern = f"%{search}%"
             query = query.filter(
-                (ComicDB.title.ilike(search_pattern)) |
-                (ComicDB.author.ilike(search_pattern)) |
-                (ComicDB.publisher.ilike(search_pattern))
+                (SeriesDB.title.ilike(search_pattern)) |
+                (SeriesDB.author.ilike(search_pattern)) |
+                (SeriesDB.publisher.ilike(search_pattern))
             )
         
-        comics_list = query.order_by(ComicDB.title).all()
+        series_list = query.order_by(SeriesDB.title).all()
         
-        # Converter para formato da API
+        # Converter para resposta
         result = []
-        for comic in comics_list:
-            comic_dict = comic_db_to_api(comic)
+        for series in series_list:
+            series_dict = series_to_response(series)
             
             # Filtro de status (após cálculo)
-            if status_filter and comic_dict["status"] != status_filter:
+            if status and series_dict["status"] != status:
                 continue
                 
-            result.append(comic_dict)
+            result.append(series_dict)
         
         return result
         
@@ -290,181 +332,281 @@ async def list_series(
 
 
 @app.get("/series/{series_id}")
-async def get_series(series_id: int):
-    """Obter uma HQ específica"""
-    db = next(get_db())
-    
+async def get_series(series_id: int, db: Session = Depends(get_db)):
+    """Obter uma série específica"""
     try:
-        comic = db.query(ComicDB).filter(ComicDB.id == series_id).first()
+        series = db.query(SeriesDB).filter(SeriesDB.id == series_id).first()
         
-        if not comic:
-            raise HTTPException(status_code=404, detail="HQ não encontrada")
+        if not series:
+            raise HTTPException(status_code=404, detail="Série não encontrada")
         
-        return comic_db_to_api(comic)
+        return series_to_response(series)
         
     except HTTPException:
         raise
     except Exception as e:
-        print(f"Erro ao buscar HQ: {e}")
+        print(f"Erro ao buscar série: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
 @app.post("/series")
-async def create_series(series: ComicCreate):
-    """Criar nova HQ"""
-    db = next(get_db())
-    
+async def create_series(series: SeriesCreate, db: Session = Depends(get_db)):
+    """Criar nova série"""
     try:
-        # Calcular status
-        status = calculate_status(series.read_issues, series.total_issues)
-        
-        # Criar comic
-        db_comic = ComicDB(
+        db_series = SeriesDB(
             title=series.title,
             author=series.author,
             publisher=series.publisher,
-            volume=None,
-            issue=series.downloaded_issues,  # usar downloaded como issue
-            current_issue=series.read_issues,
-            status=status,
+            total_issues=series.total_issues,
+            downloaded_issues=series.downloaded_issues,
+            read_issues=series.read_issues,
+            is_completed=series.is_completed,
+            series_type=series.series_type,
             cover_url=series.cover_url,
             notes=series.notes,
             date_added=datetime.now().isoformat(),
-            date_completed=datetime.now().isoformat() if status == "concluida" else None
+            date_updated=datetime.now().isoformat()
         )
         
-        db.add(db_comic)
+        db.add(db_series)
         db.commit()
-        db.refresh(db_comic)
+        db.refresh(db_series)
         
-        return comic_db_to_api(db_comic)
+        return series_to_response(db_series)
         
     except Exception as e:
         db.rollback()
-        print(f"Erro ao criar HQ: {e}")
+        print(f"Erro ao criar série: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
 @app.put("/series/{series_id}")
-async def update_series(series_id: int, series: ComicUpdate):
-    """Atualizar HQ"""
-    db = next(get_db())
-    
+async def update_series(series_id: int, series: SeriesUpdate, db: Session = Depends(get_db)):
+    """Atualizar série"""
     try:
-        db_comic = db.query(ComicDB).filter(ComicDB.id == series_id).first()
+        db_series = db.query(SeriesDB).filter(SeriesDB.id == series_id).first()
         
-        if not db_comic:
-            raise HTTPException(status_code=404, detail="HQ não encontrada")
-        
-        # Calcular status
-        status = calculate_status(series.read_issues, series.total_issues)
+        if not db_series:
+            raise HTTPException(status_code=404, detail="Série não encontrada")
         
         # Atualizar campos
-        db_comic.title = series.title
-        db_comic.author = series.author
-        db_comic.publisher = series.publisher
-        db_comic.issue = series.downloaded_issues
-        db_comic.current_issue = series.read_issues
-        db_comic.status = status
-        db_comic.cover_url = series.cover_url
-        db_comic.notes = series.notes
-        db_comic.date_completed = datetime.now().isoformat() if status == "concluida" else None
+        db_series.title = series.title
+        db_series.author = series.author
+        db_series.publisher = series.publisher
+        db_series.total_issues = series.total_issues
+        db_series.downloaded_issues = series.downloaded_issues
+        db_series.read_issues = series.read_issues
+        db_series.is_completed = series.is_completed
+        db_series.series_type = series.series_type
+        db_series.cover_url = series.cover_url
+        db_series.notes = series.notes
+        db_series.date_updated = datetime.now().isoformat()
         
         db.commit()
-        db.refresh(db_comic)
+        db.refresh(db_series)
         
-        return comic_db_to_api(db_comic)
+        return series_to_response(db_series)
         
     except HTTPException:
         raise
     except Exception as e:
         db.rollback()
-        print(f"Erro ao atualizar HQ: {e}")
+        print(f"Erro ao atualizar série: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
 @app.delete("/series/{series_id}")
-async def delete_series(series_id: int):
-    """Deletar HQ"""
-    db = next(get_db())
-    
+async def delete_series(series_id: int, db: Session = Depends(get_db)):
+    """Deletar série"""
     try:
-        db_comic = db.query(ComicDB).filter(ComicDB.id == series_id).first()
+        db_series = db.query(SeriesDB).filter(SeriesDB.id == series_id).first()
         
-        if not db_comic:
-            raise HTTPException(status_code=404, detail="HQ não encontrada")
+        if not db_series:
+            raise HTTPException(status_code=404, detail="Série não encontrada")
         
-        db.delete(db_comic)
+        db.delete(db_series)
         db.commit()
         
-        return {"message": "HQ deletada com sucesso"}
+        return {"message": "Série deletada com sucesso"}
         
     except HTTPException:
         raise
     except Exception as e:
         db.rollback()
-        print(f"Erro ao deletar HQ: {e}")
+        print(f"Erro ao deletar série: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
-# ==================== ENDPOINTS DE EDIÇÕES (mock - não implementado) ====================
+# ==================== ENDPOINTS DE EDIÇÕES ====================
 
 @app.get("/series/{series_id}/issues")
-async def list_issues(series_id: int):
-    """Listar edições de uma série (não implementado - retorna vazio)"""
-    # A tabela comics não tem edições separadas
-    return []
+async def list_issues(series_id: int, db: Session = Depends(get_db)):
+    """Listar edições de uma série"""
+    try:
+        issues = db.query(IssueDB).filter(IssueDB.series_id == series_id).order_by(IssueDB.issue_number).all()
+        
+        return [
+            {
+                "id": issue.id,
+                "series_id": issue.series_id,
+                "issue_number": issue.issue_number,
+                "title": issue.title,
+                "is_read": issue.is_read,
+                "is_downloaded": issue.is_downloaded,
+                "date_added": issue.date_added,
+                "date_read": issue.date_read
+            }
+            for issue in issues
+        ]
+        
+    except Exception as e:
+        print(f"Erro ao listar edições: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @app.post("/series/{series_id}/issues")
-async def create_issue(series_id: int, issue: dict):
-    """Adicionar edição (não implementado)"""
-    raise HTTPException(
-        status_code=501, 
-        detail="Edições não suportadas com tabela comics. Use read_issues e downloaded_issues."
-    )
+async def create_issue(series_id: int, issue: IssueCreate, db: Session = Depends(get_db)):
+    """Adicionar edição a uma série"""
+    try:
+        # Verificar se série existe
+        series = db.query(SeriesDB).filter(SeriesDB.id == series_id).first()
+        if not series:
+            raise HTTPException(status_code=404, detail="Série não encontrada")
+        
+        # Criar edição
+        db_issue = IssueDB(
+            series_id=series_id,
+            issue_number=issue.issue_number,
+            title=issue.title,
+            is_read=issue.is_read,
+            is_downloaded=True,
+            date_added=datetime.now().isoformat(),
+            date_read=datetime.now().isoformat() if issue.is_read else None
+        )
+        
+        db.add(db_issue)
+        
+        # Atualizar contadores da série
+        series.downloaded_issues += 1
+        if issue.is_read:
+            series.read_issues += 1
+        
+        db.commit()
+        db.refresh(db_issue)
+        
+        return {
+            "id": db_issue.id,
+            "series_id": db_issue.series_id,
+            "issue_number": db_issue.issue_number,
+            "title": db_issue.title,
+            "is_read": db_issue.is_read,
+            "is_downloaded": db_issue.is_downloaded,
+            "date_added": db_issue.date_added,
+            "date_read": db_issue.date_read
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        print(f"Erro ao criar edição: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @app.put("/issues/{issue_id}")
-async def update_issue(issue_id: int, issue_update: dict):
-    """Atualizar edição (não implementado)"""
-    raise HTTPException(
-        status_code=501, 
-        detail="Edições não suportadas com tabela comics."
-    )
+async def update_issue(issue_id: int, issue_update: IssueUpdate, db: Session = Depends(get_db)):
+    """Atualizar edição (marcar como lida/não lida)"""
+    try:
+        db_issue = db.query(IssueDB).filter(IssueDB.id == issue_id).first()
+        
+        if not db_issue:
+            raise HTTPException(status_code=404, detail="Edição não encontrada")
+        
+        # Atualizar status de leitura
+        was_read = db_issue.is_read
+        db_issue.is_read = issue_update.is_read
+        
+        if issue_update.is_read and not was_read:
+            db_issue.date_read = datetime.now().isoformat()
+            # Incrementar contador da série
+            series = db.query(SeriesDB).filter(SeriesDB.id == db_issue.series_id).first()
+            if series:
+                series.read_issues += 1
+        elif not issue_update.is_read and was_read:
+            db_issue.date_read = None
+            # Decrementar contador da série
+            series = db.query(SeriesDB).filter(SeriesDB.id == db_issue.series_id).first()
+            if series:
+                series.read_issues = max(0, series.read_issues - 1)
+        
+        db.commit()
+        db.refresh(db_issue)
+        
+        return {
+            "id": db_issue.id,
+            "series_id": db_issue.series_id,
+            "issue_number": db_issue.issue_number,
+            "title": db_issue.title,
+            "is_read": db_issue.is_read,
+            "is_downloaded": db_issue.is_downloaded,
+            "date_added": db_issue.date_added,
+            "date_read": db_issue.date_read
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        print(f"Erro ao atualizar edição: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @app.delete("/issues/{issue_id}")
-async def delete_issue(issue_id: int):
-    """Deletar edição (não implementado)"""
-    raise HTTPException(
-        status_code=501, 
-        detail="Edições não suportadas com tabela comics."
-    )
+async def delete_issue(issue_id: int, db: Session = Depends(get_db)):
+    """Deletar edição"""
+    try:
+        db_issue = db.query(IssueDB).filter(IssueDB.id == issue_id).first()
+        
+        if not db_issue:
+            raise HTTPException(status_code=404, detail="Edição não encontrada")
+        
+        # Atualizar contadores da série
+        series = db.query(SeriesDB).filter(SeriesDB.id == db_issue.series_id).first()
+        if series:
+            series.downloaded_issues = max(0, series.downloaded_issues - 1)
+            if db_issue.is_read:
+                series.read_issues = max(0, series.read_issues - 1)
+        
+        db.delete(db_issue)
+        db.commit()
+        
+        return {"message": "Edição deletada com sucesso"}
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        print(f"Erro ao deletar edição: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 # ==================== ESTATÍSTICAS ====================
 
 @app.get("/stats")
-async def get_stats():
+async def get_stats(db: Session = Depends(get_db)):
     """Obter estatísticas gerais"""
-    db = next(get_db())
-    
     try:
-        all_comics = db.query(ComicDB).all()
+        all_series = db.query(SeriesDB).all()
         
         stats = {
-            "total": len(all_comics),
+            "total": len(all_series),
             "para_ler": 0,
             "lendo": 0,
             "concluida": 0
         }
         
-        for comic in all_comics:
-            total_issues = comic.issue or 0
-            read_issues = comic.current_issue or 0
-            status = calculate_status(read_issues, total_issues)
-            
+        for series in all_series:
+            status = calculate_status(series.read_issues, series.total_issues)
             if status in stats:
                 stats[status] += 1
         
@@ -483,10 +625,10 @@ if __name__ == "__main__":
     port = int(os.getenv("PORT", 8000))
     
     print("=" * 70)
-    print("HQ MANAGER API - TABELA COMICS")
+    print("HQ MANAGER API")
     print("=" * 70)
-    print(f"🌐 Servidor rodando em: http://0.0.0.0:{port}")
-    print(f"📚 Documentação: http://0.0.0.0:{port}/docs")
+    print(f"🌐 Servidor: http://0.0.0.0:{port}")
+    print(f"📚 Docs: http://0.0.0.0:{port}/docs")
     print("=" * 70)
     
     uvicorn.run(

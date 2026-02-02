@@ -1,4 +1,4 @@
-"""
+2"""
 Script para criar a tabela COMICS no PostgreSQL do Railway
 Execute este script UMA VEZ para criar a estrutura do banco
 """
