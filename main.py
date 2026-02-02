@@ -26,9 +26,27 @@ app.add_middleware(
 # Inicializar banco de dados
 init_db()
 
-# Servir arquivos estáticos
-if os.path.exists("index.html"):
-    app.mount("/static", StaticFiles(directory="."), name="static")
+# Servir arquivos estáticos (CSS, JS, etc)
+@app.get("/styles.css")
+async def serve_css():
+    """Servir arquivo CSS"""
+    if os.path.exists("styles.css"):
+        return FileResponse("styles.css", media_type="text/css")
+    raise HTTPException(status_code=404, detail="CSS not found")
+
+@app.get("/script.js")
+async def serve_js():
+    """Servir arquivo JavaScript principal"""
+    if os.path.exists("script.js"):
+        return FileResponse("script.js", media_type="application/javascript")
+    raise HTTPException(status_code=404, detail="JS not found")
+
+@app.get("/script-extensions.js")
+async def serve_extensions_js():
+    """Servir arquivo JavaScript de extensões"""
+    if os.path.exists("script-extensions.js"):
+        return FileResponse("script-extensions.js", media_type="application/javascript")
+    raise HTTPException(status_code=404, detail="Extensions JS not found")
 
 # Modelos Pydantic
 class IssueBase(BaseModel):
