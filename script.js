@@ -388,6 +388,87 @@ function displayIssues(issues) {
     });
 }
 
+/**
+ * Sincronizar edições automaticamente com base no total_issues
+ */
+async function sincronizarEdicoesAutomaticamente() {
+    if (!currentSeriesId) return;
+    
+    const btnSync = event.target;
+    btnSync.disabled = true;
+    btnSync.innerHTML = '⏳ Sincronizando...';
+    
+    try {
+        // Buscar dados da série atual
+        const serieResponse = await fetch(`${API_URL}/series/${currentSeriesId}`);
+        const serie = await serieResponse.json();
+        
+        if (!serie.total_issues || serie.total_issues <= 0) {
+            alert('Esta série não tem um total de edições definido.');
+            return;
+        }
+        
+        // Buscar edições existentes
+        const issuesResponse = await fetch(`${API_URL}/series/${currentSeriesId}/issues`);
+        const existingIssues = await issuesResponse.json();
+        
+        // Encontrar edições faltantes
+        const existingNumbers = new Set(existingIssues.map(i => parseInt(i.issue_number)));
+        const faltantes = [];
+        
+        for (let numero = 1; numero <= serie.total_issues; numero++) {
+            if (!existingNumbers.has(numero)) {
+                faltantes.push(numero);
+            }
+        }
+        
+        if (faltantes.length === 0) {
+            alert('✅ Todas as edições já estão cadastradas!');
+            return;
+        }
+        
+        // Confirmar com o usuário
+        const confirmacao = confirm(
+            `Serão adicionadas ${faltantes.length} edições faltantes:\n\n` +
+            `Edições: ${faltantes.slice(0, 10).join(', ')}${faltantes.length > 10 ? '...' : ''}\n\n` +
+            `Continuar?`
+        );
+        
+        if (!confirmacao) return;
+        
+        // Adicionar edições faltantes
+        let adicionadas = 0;
+        for (const numero of faltantes) {
+            const response = await fetch(`${API_URL}/series/${currentSeriesId}/issues`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    issue_number: numero,
+                    is_read: false,
+                }),
+            });
+            
+            if (response.ok) {
+                adicionadas++;
+            }
+            
+            await new Promise(r => setTimeout(r, 50));
+        }
+        
+        alert(`✅ ${adicionadas} edições adicionadas com sucesso!`);
+        
+        // Recarregar a página
+        window.location.reload();
+        
+    } catch (error) {
+        console.error('Erro ao sincronizar:', error);
+        alert('❌ Erro ao sincronizar edições.');
+    } finally {
+        btnSync.disabled = false;
+        btnSync.innerHTML = '🔄 Sincronizar Edições';
+    }
+}
+
 // Filter
 function filterSeries(filter) {
     console.log('🔍 Filtrando por:', filter);
@@ -484,24 +565,67 @@ async function submitSeriesForm(event) {
     };
     
     try {
+        let oldTotalIssues = 0;
+        let finalSeriesId = seriesId;
+        
+        // Se está editando, buscar o total_issues ANTIGO
         if (seriesId) {
             console.log('📝 Atualizando série:', seriesId);
+            const oldSeries = await fetchAPI(`/series/${seriesId}`);
+            oldTotalIssues = oldSeries.total_issues || 0;
+            
             await fetchAPI(`/series/${seriesId}`, {
                 method: 'PUT',
                 body: JSON.stringify(formData),
             });
         } else {
             console.log('➕ Criando nova série');
-            await fetchAPI('/series', {
+            const newSeries = await fetchAPI('/series', {
                 method: 'POST',
                 body: JSON.stringify(formData),
             });
+            finalSeriesId = newSeries.id;
         }
         
         console.log('✅ Série salva!');
+        
+        // Se o total_issues aumentou, perguntar se quer adicionar as novas edições
+        if (finalSeriesId && formData.total_issues > oldTotalIssues) {
+            const diff = formData.total_issues - oldTotalIssues;
+            const adicionar = confirm(
+                `O total de edições aumentou de ${oldTotalIssues} para ${formData.total_issues}.\n\n` +
+                `Deseja adicionar automaticamente as ${diff} novas edições (#${oldTotalIssues + 1} até #${formData.total_issues})?`
+            );
+            
+            if (adicionar) {
+                console.log(`➕ Adicionando ${diff} novas edições...`);
+                
+                // Adicionar novas edições
+                for (let numero = oldTotalIssues + 1; numero <= formData.total_issues; numero++) {
+                    try {
+                        await fetchAPI(`/series/${finalSeriesId}/issues`, {
+                            method: 'POST',
+                            body: JSON.stringify({
+                                issue_number: numero,
+                                is_read: false,
+                            }),
+                        });
+                        console.log(`   ✅ Edição #${numero} adicionada`);
+                        
+                        // Delay pequeno para não sobrecarregar
+                        await new Promise(r => setTimeout(r, 50));
+                    } catch (error) {
+                        console.error(`   ❌ Erro ao adicionar edição #${numero}:`, error);
+                    }
+                }
+                
+                console.log(`✅ ${diff} novas edições adicionadas!`);
+            }
+        }
+        
         closeModal();
         
-        if (currentSeriesId && seriesId === currentSeriesId.toString()) {
+        if (currentSeriesId && finalSeriesId === currentSeriesId.toString()) {
             loadSeriesDetail(currentSeriesId);
         } else {
             loadSeries();
@@ -570,9 +694,35 @@ async function editSeriesById(seriesId) {
     }
 }
 
-function editSeries() {
-    if (currentSeriesId) {
-        editSeriesById(currentSeriesId);
+async function editSeries() {
+    if (!currentSeriesId) return;
+    
+    try {
+        console.log('✏️ Carregando dados para edição da série:', currentSeriesId);
+        const series = await fetchAPI(`/series/${currentSeriesId}`);
+        
+        console.log('📝 Dados da série carregados:', series);
+        
+        // Preencher o formulário com os dados atuais
+        document.getElementById('series-id').value = series.id;
+        document.getElementById('modal-title').textContent = 'Editar HQ';
+        document.getElementById('title').value = series.title || '';
+        document.getElementById('author').value = series.author || '';
+        document.getElementById('publisher').value = series.publisher || '';
+        document.getElementById('total_issues').value = series.total_issues || 0;
+        document.getElementById('downloaded_issues').value = series.downloaded_issues || 0;
+        document.getElementById('read_issues').value = series.read_issues || 0;
+        document.getElementById('is_completed').checked = series.is_completed || false;
+        document.getElementById('series_type').value = series.series_type || 'em_andamento';
+        document.getElementById('cover_url').value = series.cover_url || '';
+        document.getElementById('notes').value = series.notes || '';
+        
+        // Abrir modal
+        openModal();
+        
+    } catch (error) {
+        console.error('❌ Erro ao carregar dados para edição:', error);
+        alert('Erro ao carregar dados da série.');
     }
 }
 
@@ -644,3 +794,165 @@ async function toggleIssueRead(issueId, isRead) {
 
 console.log('✅ Script carregado! API URL:', API_URL);
 console.log('🔧 Versão: 2.1 - Debug completo');
+
+/**
+ * FUNÇÃO: Sincronizar edições automaticamente com base no total_issues
+ */
+async function sincronizarEdicoesAutomaticamente() {
+    if (!currentSeriesId) return;
+    
+    const btnSync = event.target;
+    const originalHTML = btnSync.innerHTML;
+    btnSync.disabled = true;
+    btnSync.innerHTML = '⏳ Sincronizando...';
+    
+    try {
+        // Buscar dados da série atual
+        const serie = await fetchAPI(`/series/${currentSeriesId}`);
+        
+        if (!serie.total_issues || serie.total_issues <= 0) {
+            alert('Esta série não tem um total de edições definido.');
+            return;
+        }
+        
+        // Buscar edições existentes
+        const existingIssues = await fetchAPI(`/series/${currentSeriesId}/issues`);
+        
+        // Encontrar edições faltantes
+        const existingNumbers = new Set(existingIssues.map(i => parseInt(i.issue_number)));
+        const faltantes = [];
+        
+        for (let numero = 1; numero <= serie.total_issues; numero++) {
+            if (!existingNumbers.has(numero)) {
+                faltantes.push(numero);
+            }
+        }
+        
+        if (faltantes.length === 0) {
+            alert('✅ Todas as edições já estão cadastradas!');
+            return;
+        }
+        
+        // Confirmar com o usuário
+        const confirmacao = confirm(
+            `Serão adicionadas ${faltantes.length} edições faltantes:\n\n` +
+            `Edições: ${faltantes.slice(0, 10).join(', ')}${faltantes.length > 10 ? '...' : ''}\n\n` +
+            `Continuar?`
+        );
+        
+        if (!confirmacao) return;
+        
+        // Adicionar edições faltantes
+        let adicionadas = 0;
+        for (const numero of faltantes) {
+            try {
+                await fetchAPI(`/series/${currentSeriesId}/issues`, {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        issue_number: numero,
+                        is_read: false,
+                    }),
+                });
+                adicionadas++;
+                console.log(`   ✅ Edição #${numero} adicionada`);
+                
+                await new Promise(r => setTimeout(r, 50));
+            } catch (error) {
+                console.error(`   ❌ Erro ao adicionar edição #${numero}:`, error);
+            }
+        }
+        
+        alert(`✅ ${adicionadas} edições adicionadas com sucesso!`);
+        
+        // Recarregar a página
+        window.location.reload();
+        
+    } catch (error) {
+        console.error('Erro ao sincronizar:', error);
+        alert('❌ Erro ao sincronizar edições.');
+    } finally {
+        btnSync.disabled = false;
+        btnSync.innerHTML = originalHTML;
+    }
+}
+
+/**
+ * SCRIPT: Remover edições duplicadas
+ * Cole este código no console para executar
+ */
+async function removerEdicoesDuplicadas() {
+    console.log('🧹 Iniciando limpeza de edições duplicadas...\n');
+    
+    try {
+        // Buscar todas as séries
+        const allSeries = await fetchAPI('/series');
+        
+        console.log(`📚 Analisando ${allSeries.length} séries...\n`);
+        
+        let totalRemovidas = 0;
+        
+        for (const serie of allSeries) {
+            console.log(`📖 Verificando: ${serie.title}`);
+            
+            // Buscar todas as edições desta série
+            const issues = await fetchAPI(`/series/${serie.id}/issues`);
+            
+            // Agrupar por número de edição
+            const issuesByNumber = {};
+            issues.forEach(issue => {
+                const num = issue.issue_number;
+                if (!issuesByNumber[num]) {
+                    issuesByNumber[num] = [];
+                }
+                issuesByNumber[num].push(issue);
+            });
+            
+            // Encontrar duplicatas
+            let duplicatasNestaSerie = 0;
+            for (const [numero, issuesList] of Object.entries(issuesByNumber)) {
+                if (issuesList.length > 1) {
+                    console.log(`   ⚠️ Edição #${numero} duplicada (${issuesList.length} vezes)`);
+                    
+                    // Manter a primeira, remover as outras
+                    for (let i = 1; i < issuesList.length; i++) {
+                        const issueToDelete = issuesList[i];
+                        
+                        try {
+                            await fetchAPI(`/issues/${issueToDelete.id}`, {
+                                method: 'DELETE'
+                            });
+                            
+                            console.log(`      ✅ Removida duplicata ID ${issueToDelete.id}`);
+                            duplicatasNestaSerie++;
+                            totalRemovidas++;
+                            
+                            await new Promise(r => setTimeout(r, 50));
+                            
+                        } catch (error) {
+                            console.error(`      ❌ Erro ao remover ID ${issueToDelete.id}:`, error.message);
+                        }
+                    }
+                }
+            }
+            
+            if (duplicatasNestaSerie === 0) {
+                console.log(`   ✅ Sem duplicatas`);
+            }
+        }
+        
+        console.log('\n' + '='.repeat(50));
+        console.log('✅ LIMPEZA CONCLUÍDA!');
+        console.log('='.repeat(50));
+        console.log(`🗑️ Total de duplicatas removidas: ${totalRemovidas}`);
+        
+        if (totalRemovidas > 0) {
+            const recarregar = confirm('Duplicatas removidas! Deseja recarregar a página?');
+            if (recarregar) {
+                window.location.reload();
+            }
+        }
+        
+    } catch (error) {
+        console.error('❌ Erro:', error);
+    }
+}
