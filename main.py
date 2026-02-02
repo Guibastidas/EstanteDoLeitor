@@ -63,6 +63,16 @@ class ComicDB(Base):
     date_completed = Column(String(50))
 
 
+# CRIAR TABELAS AUTOMATICAMENTE SE NÃO EXISTIREM
+print("🔍 Verificando se tabelas existem...")
+try:
+    Base.metadata.create_all(bind=engine)
+    print("✅ Tabelas criadas/verificadas com sucesso!")
+except Exception as e:
+    print(f"⚠️ Erro ao criar tabelas: {e}")
+    print("   O sistema tentará funcionar mesmo assim...")
+
+
 # ==================== MODELOS PYDANTIC (API) ====================
 
 class ComicCreate(BaseModel):
