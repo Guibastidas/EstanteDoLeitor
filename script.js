@@ -380,9 +380,9 @@ function displayIssues(issues, totalBaixado, totalPublicado) {
         const issueCard = document.createElement('div');
         
         // SISTEMA DE CORES:
-        // 🟢 Verde = Lida (is_read = true)
-        // 🟡 Amarelo = Baixada mas não lida (existe no sistema, is_read = false)
-        // 🔴 Vermelho = Não baixada (não existe no sistema)
+        // 🟢 Verde = Lida (is_read = true) - classe 'read'
+        // 🟡 Amarelo/Branco = Baixada mas não lida (existe no sistema, is_read = false) - sem classe extra
+        // 🔴 Vermelho = Não baixada (não existe no sistema) - classe 'issue-faltante'
         
         let colorClass = '';
         let titleText = '';
@@ -391,10 +391,10 @@ function displayIssues(issues, totalBaixado, totalPublicado) {
         if (issue) {
             // Edição existe no sistema
             if (issue.is_read) {
-                colorClass = 'issue-lida';  // Verde
+                colorClass = 'read';  // Verde - usa a classe CSS existente
                 titleText = `Edição #${numero}`;
             } else {
-                colorClass = 'issue-baixada';  // Amarelo
+                colorClass = '';  // Card padrão (branco/sem classe especial)
                 titleText = `Edição #${numero}`;
             }
             
@@ -409,7 +409,7 @@ function displayIssues(issues, totalBaixado, totalPublicado) {
             `;
         } else {
             // Edição NÃO existe no sistema (falta baixar)
-            colorClass = 'issue-faltante';  // Vermelho
+            colorClass = 'issue-faltante';  // Vermelho - usa a classe CSS existente
             titleText = `Edição #${numero} - Não baixada`;
             actionsHTML = `
                 <button class="btn-icon btn-add-quick" onclick="adicionarEdicaoRapida(${numero})" title="Adicionar esta edição">
@@ -663,8 +663,7 @@ async function submitSeriesForm(event) {
         author: document.getElementById('author').value || null,
         publisher: document.getElementById('publisher').value || null,
         total_issues: parseInt(document.getElementById('total_issues').value) || 0,
-        downloaded_issues: parseInt(document.getElementById('downloaded_issues').value) || 0,
-        read_issues: parseInt(document.getElementById('read_issues').value) || 0,
+        // REMOVIDO: downloaded_issues e read_issues - serão calculados automaticamente pelo backend
         is_completed: document.getElementById('is_completed').checked,
         series_type: document.getElementById('series_type').value,
         cover_url: document.getElementById('cover_url').value || null,
@@ -788,8 +787,7 @@ async function editSeriesById(seriesId) {
         document.getElementById('title').value = series.title || '';
         document.getElementById('author').value = series.author || '';
         document.getElementById('publisher').value = series.publisher || '';
-        document.getElementById('read_issues').value = series.read_issues || 0;
-        document.getElementById('downloaded_issues').value = series.downloaded_issues || 0;
+        // REMOVIDO: read_issues e downloaded_issues - não devem ser editados manualmente
         document.getElementById('total_issues').value = series.total_issues || 0;
         document.getElementById('series_type').value = series.series_type || 'em_andamento';
         document.getElementById('is_completed').checked = series.is_completed || false;
