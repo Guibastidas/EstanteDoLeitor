@@ -11,6 +11,15 @@ let searchTimeout = null;
 document.addEventListener('DOMContentLoaded', () => {
     console.log('🚀 Iniciando aplicação...');
     console.log('📡 API URL:', API_URL);
+    
+    // Adicionar listener aos botões para debug
+    const btnNova = document.querySelector('.btn-primary');
+    if (btnNova) {
+        console.log('✅ Botão "Nova HQ" encontrado');
+    } else {
+        console.error('❌ Botão "Nova HQ" NÃO encontrado!');
+    }
+    
     loadSeries();
     loadStats();
 });
@@ -60,6 +69,7 @@ async function fetchAPI(endpoint, options = {}) {
         }
         
         const data = await response.json();
+        console.log('📦 Dados recebidos:', data);
         return data;
     } catch (error) {
         console.error('❌ API Error:', error);
@@ -87,14 +97,27 @@ async function loadStats() {
         console.log('📊 Carregando estatísticas...');
         const stats = await fetchAPI('/stats');
         
-        document.getElementById('stat-total').textContent = stats.total;
-        document.getElementById('stat-para-ler').textContent = stats.para_ler;
-        document.getElementById('stat-lendo').textContent = stats.lendo;
-        document.getElementById('stat-concluidas').textContent = stats.concluidas;
+        console.log('📊 Estatísticas recebidas:', stats);
         
-        console.log('✅ Estatísticas atualizadas:', stats);
+        // Atualizar com verificação
+        const totalEl = document.getElementById('stat-total');
+        const paraLerEl = document.getElementById('stat-para-ler');
+        const lendoEl = document.getElementById('stat-lendo');
+        const concluidasEl = document.getElementById('stat-concluidas');
+        
+        if (totalEl) totalEl.textContent = stats.total || 0;
+        if (paraLerEl) paraLerEl.textContent = stats.para_ler || 0;
+        if (lendoEl) lendoEl.textContent = stats.lendo || 0;
+        if (concluidasEl) concluidasEl.textContent = stats.concluida || 0;
+        
+        console.log('✅ Estatísticas atualizadas:');
+        console.log('   Total:', stats.total);
+        console.log('   Para Ler:', stats.para_ler);
+        console.log('   Lendo:', stats.lendo);
+        console.log('   Concluídas:', stats.concluida);
     } catch (error) {
-        console.error('Error loading stats:', error);
+        console.error('❌ Error loading stats:', error);
+        // Não mostrar erro pro usuário, apenas no console
     }
 }
 
@@ -326,6 +349,8 @@ function displayIssues(issues) {
     const issuesList = document.getElementById('issues-list');
     const emptyIssues = document.getElementById('empty-issues');
     
+    console.log('📖 Exibindo', issues.length, 'edições');
+    
     if (!issues || issues.length === 0) {
         issuesList.innerHTML = '';
         emptyIssues.style.display = 'block';
@@ -335,7 +360,10 @@ function displayIssues(issues) {
     emptyIssues.style.display = 'none';
     issuesList.innerHTML = '';
     
-    issues.forEach(issue => {
+    // Ordenar por número
+    const sortedIssues = [...issues].sort((a, b) => a.issue_number - b.issue_number);
+    
+    sortedIssues.forEach(issue => {
         const issueCard = document.createElement('div');
         issueCard.className = `issue-card ${issue.is_read ? 'read' : ''}`;
         
@@ -403,7 +431,12 @@ function clearSearch() {
 // Modal Functions
 function openModal() {
     console.log('📝 Abrindo modal de série');
-    document.getElementById('series-modal').classList.add('active');
+    const modal = document.getElementById('series-modal');
+    if (!modal) {
+        console.error('❌ Modal não encontrado!');
+        return;
+    }
+    modal.classList.add('active');
     document.getElementById('series-form').reset();
     document.getElementById('series-id').value = '';
     document.getElementById('modal-title').textContent = 'Nova HQ';
@@ -416,7 +449,12 @@ function closeModal() {
 
 function openAddIssueModal() {
     console.log('📝 Abrindo modal de edição');
-    document.getElementById('issue-modal').classList.add('active');
+    const modal = document.getElementById('issue-modal');
+    if (!modal) {
+        console.error('❌ Modal de edição não encontrado!');
+        return;
+    }
+    modal.classList.add('active');
     document.getElementById('issue-form').reset();
 }
 
@@ -478,7 +516,10 @@ async function submitSeriesForm(event) {
 async function submitIssueForm(event) {
     event.preventDefault();
     
-    if (!currentSeriesId) return;
+    if (!currentSeriesId) {
+        console.error('❌ Nenhuma série selecionada!');
+        return;
+    }
     
     console.log('💾 Adicionando edição...');
     
@@ -602,3 +643,4 @@ async function toggleIssueRead(issueId, isRead) {
 }
 
 console.log('✅ Script carregado! API URL:', API_URL);
+console.log('🔧 Versão: 2.1 - Debug completo');
