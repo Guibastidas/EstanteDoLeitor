@@ -993,6 +993,57 @@ async function sincronizarEdicoesAutomaticamente() {
 }
 
 /**
+ * FUNÇÃO: Verificar se o contador "Lendo" está sincronizado
+ */
+async function verificarSincronizacaoLendo() {
+    if (!currentSeriesId) return;
+    
+    try {
+        console.log('🔍 Verificando sincronização do campo "Lendo"...');
+        
+        // Buscar edições da série
+        const issues = await fetchAPI(`/series/${currentSeriesId}/issues`);
+        
+        // Contar quantas estão marcadas como lidas
+        const totalLido = issues.filter(i => i.is_read).length;
+        
+        // Buscar dados da série
+        const serie = await fetchAPI(`/series/${currentSeriesId}`);
+        
+        console.log('📊 Valores:');
+        console.log('   - Lendo (banco): ' + serie.read_issues);
+        console.log('   - Lendo (real): ' + totalLido);
+        
+        if (serie.read_issues === totalLido) {
+            alert(`✅ Sincronização OK!\n\nO contador está correto: ${totalLido} edições lidas.`);
+        } else {
+            const corrigir = confirm(
+                `⚠️ Dessincronização detectada!\n\n` +
+                `Valor atual no banco: ${serie.read_issues}\n` +
+                `Valor real (edições marcadas): ${totalLido}\n\n` +
+                `Deseja corrigir automaticamente?`
+            );
+            
+            if (corrigir) {
+                console.log('🔧 Corrigindo valor...');
+                
+                // Recarregar a página para forçar recálculo
+                // O backend já faz isso automaticamente na função series_to_response
+                await loadSeriesDetail(currentSeriesId);
+                await loadSeries();
+                await loadStats();
+                
+                alert(`✅ Valores atualizados!\n\nAgora mostrando: ${totalLido} edições lidas.`);
+            }
+        }
+        
+    } catch (error) {
+        console.error('❌ Erro ao verificar:', error);
+        alert('❌ Erro ao verificar sincronização.');
+    }
+}
+
+/**
  * SCRIPT: Remover edições duplicadas
  * Cole este código no console para executar
  */

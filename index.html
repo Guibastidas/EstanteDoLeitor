@@ -117,6 +117,9 @@
                                 <div class="stat-pill">
                                     <span class="pill-label">Lendo:</span>
                                     <span class="pill-value" id="detail-reading">0</span>
+                                    <button class="btn-icon-mini" onclick="verificarSincronizacaoLendo()" title="Verificar se o contador está correto">
+                                        🔍
+                                    </button>
                                 </div>
                                 <div class="stat-pill">
                                     <span class="pill-label">Baixadas:</span>
@@ -128,9 +131,6 @@
                                 </div>
                             </div>
                             <div class="series-actions">
-                                <button class="btn-secondary" onclick="editSeries()">
-                                    ✏️ Editar Série
-                                </button>
                                 <button class="btn btn-sync" onclick="sincronizarEdicoesAutomaticamente()" title="Sincronizar edições automaticamente">
                                     🔄 Sincronizar Edições
                                 </button>
