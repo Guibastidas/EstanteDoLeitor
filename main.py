@@ -10,6 +10,8 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 from pydantic import BaseModel
 from sqlalchemy import create_engine, Column, Integer, String, Boolean, Text, DateTime, func
 from sqlalchemy.ext.declarative import declarative_base
@@ -176,7 +178,12 @@ def comic_db_to_api(comic_db: ComicDB) -> dict:
 
 @app.get("/")
 async def root():
-    """Endpoint raiz"""
+    """Servir página inicial"""
+    return FileResponse("index.html")
+
+@app.get("/api")
+async def api_root():
+    """Endpoint de informação da API"""
     return {
         "message": "HQ Manager API - Usando tabela COMICS",
         "version": "2.1.0",
