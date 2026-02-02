@@ -453,6 +453,7 @@ async function adicionarEdicaoRapida(numero) {
         console.log(`✅ Edição #${numero} adicionada!`);
         loadSeriesDetail(currentSeriesId);
         loadStats();
+        loadSeries();  // ← CORREÇÃO: Recarregar lista para atualizar contadores
     } catch (error) {
         console.error('Error adding issue:', error);
         alert('Erro ao adicionar edição: ' + error.message);
@@ -733,6 +734,7 @@ async function submitIssueForm(event) {
         closeIssueModal();
         loadSeriesDetail(currentSeriesId);
         loadStats();
+        loadSeries();  // ← CORREÇÃO: Recarregar lista para atualizar contadores
     } catch (error) {
         console.error('Error adding issue:', error);
         alert('Erro ao adicionar edição: ' + error.message);
@@ -838,6 +840,7 @@ async function deleteIssue(issueId, issueNumber) {
         if (currentSeriesId) {
             loadSeriesDetail(currentSeriesId);
             loadStats();
+            loadSeries();  // ← CORREÇÃO: Recarregar lista para atualizar contadores
         }
     } catch (error) {
         console.error('Error deleting issue:', error);
@@ -856,6 +859,7 @@ async function toggleIssueRead(issueId, isRead) {
         if (currentSeriesId) {
             loadSeriesDetail(currentSeriesId);
             loadStats();
+            loadSeries();  // ← CORREÇÃO: Recarregar lista para atualizar contadores
         }
     } catch (error) {
         console.error('Error toggling issue:', error);
