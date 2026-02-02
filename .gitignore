@@ -1,0 +1,7 @@
+# Python  
+__pycache__/  
+*.db  
+*backup*.xlsx  
+electron-app/  
+node_modules/  
+*.exe  
