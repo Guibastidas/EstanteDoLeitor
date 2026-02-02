@@ -781,24 +781,32 @@ async function editSeriesById(seriesId) {
     try {
         console.log('✏️ Editando série:', seriesId);
         const series = await fetchAPI(`/series/${seriesId}`);
+        console.log('📖 Dados da série carregados:', series);
         
+        // Preencher form com os dados da série
         document.getElementById('series-id').value = series.id;
-        document.getElementById('modal-title').textContent = 'Editar HQ';
-        document.getElementById('title').value = series.title;
+        document.getElementById('title').value = series.title || '';
         document.getElementById('author').value = series.author || '';
         document.getElementById('publisher').value = series.publisher || '';
-        document.getElementById('total_issues').value = series.total_issues;
-        document.getElementById('downloaded_issues').value = series.downloaded_issues;
-        document.getElementById('read_issues').value = series.read_issues;
-        document.getElementById('is_completed').checked = series.is_completed;
+        document.getElementById('read_issues').value = series.read_issues || 0;
+        document.getElementById('downloaded_issues').value = series.downloaded_issues || 0;
+        document.getElementById('total_issues').value = series.total_issues || 0;
         document.getElementById('series_type').value = series.series_type || 'em_andamento';
+        document.getElementById('is_completed').checked = series.is_completed || false;
         document.getElementById('cover_url').value = series.cover_url || '';
         document.getElementById('notes').value = series.notes || '';
         
-        openModal();
+        // Alterar título do modal para indicar edição
+        document.getElementById('modal-title').textContent = 'Editar HQ';
+        
+        // Abrir modal com a classe 'show'
+        const modal = document.getElementById('series-modal');
+        modal.classList.add('show');
+        
+        console.log('✅ Modal de edição aberto com sucesso');
     } catch (error) {
-        console.error('Error loading series for edit:', error);
-        alert('Erro ao carregar série para edição.');
+        console.error('❌ Error loading series for edit:', error);
+        alert('Erro ao carregar série para edição: ' + error.message);
     }
 }
 
