@@ -322,22 +322,27 @@ async function loadSeriesDetail(seriesId) {
             coverPlaceholder.style.display = 'flex';
         }
         
-        // Progresso
-        const progressPercent = series.total_issues > 0 
-            ? Math.min((series.read_issues / series.total_issues) * 100, 100) 
+        // CORREÇÃO: Calcular estatísticas corretas
+        const totalPublicado = series.total_issues || 0;  // Quantas edições foram publicadas
+        const totalBaixado = issues.length;  // Quantas edições você tem no sistema
+        const totalLido = issues.filter(i => i.is_read).length;  // Quantas você leu
+        
+        // Progresso baseado em lidas vs publicadas
+        const progressPercent = totalPublicado > 0 
+            ? Math.min((totalLido / totalPublicado) * 100, 100) 
             : 0;
         
         document.getElementById('detail-progress').textContent = 
-            `${series.read_issues}/${series.total_issues} edições (${Math.round(progressPercent)}%)`;
+            `${totalLido}/${totalPublicado} edições (${Math.round(progressPercent)}%)`;
         document.getElementById('detail-progress-bar').style.width = `${progressPercent}%`;
         
-        // Stats
-        document.getElementById('detail-reading').textContent = series.read_issues;
-        document.getElementById('detail-downloaded').textContent = series.downloaded_issues;
-        document.getElementById('detail-total').textContent = series.total_issues;
+        // Stats corrigidas
+        document.getElementById('detail-reading').textContent = totalLido;  // Quantas você leu
+        document.getElementById('detail-downloaded').textContent = totalBaixado;  // Quantas você tem (issues criados)
+        document.getElementById('detail-total').textContent = totalPublicado;  // Quantas foram publicadas
         
-        // Edições
-        displayIssues(issues);
+        // Edições com sistema de cores
+        displayIssues(issues, totalBaixado, totalPublicado);
     } catch (error) {
         console.error('Error loading series detail:', error);
         alert('Erro ao carregar detalhes da série.');
@@ -345,11 +350,12 @@ async function loadSeriesDetail(seriesId) {
     }
 }
 
-function displayIssues(issues) {
+function displayIssues(issues, totalBaixado, totalPublicado) {
     const issuesList = document.getElementById('issues-list');
     const emptyIssues = document.getElementById('empty-issues');
     
     console.log('📖 Exibindo', issues.length, 'edições');
+    console.log('📊 Total baixado:', totalBaixado, '| Total publicado:', totalPublicado);
     
     if (!issues || issues.length === 0) {
         issuesList.innerHTML = '';
@@ -360,32 +366,97 @@ function displayIssues(issues) {
     emptyIssues.style.display = 'none';
     issuesList.innerHTML = '';
     
-    // Ordenar por número
-    const sortedIssues = [...issues].sort((a, b) => a.issue_number - b.issue_number);
+    // Criar um Set com os números das edições que existem
+    const existingNumbers = new Set(issues.map(i => i.issue_number));
     
-    sortedIssues.forEach(issue => {
-        const issueCard = document.createElement('div');
-        issueCard.className = `issue-card ${issue.is_read ? 'read' : ''}`;
+    // Criar todas as edições (existentes + faltantes) até total_issues
+    const allIssueCards = [];
+    
+    // Adicionar todas as edições até o total publicado
+    for (let numero = 1; numero <= totalPublicado; numero++) {
+        const issue = issues.find(i => i.issue_number === numero);
         
-        issueCard.innerHTML = `
-            <div class="issue-number">#${issue.issue_number}</div>
-            <div class="issue-info">
-                <div class="issue-title">${issue.title || `Edição #${issue.issue_number}`}</div>
-                ${issue.date_read ? `<div class="issue-date">Lida em ${new Date(issue.date_read).toLocaleDateString('pt-BR')}</div>` : ''}
-            </div>
-            <div class="issue-actions">
+        const issueCard = document.createElement('div');
+        
+        // SISTEMA DE CORES:
+        // 🟢 Verde = Lida (is_read = true)
+        // 🟡 Amarelo = Baixada mas não lida (existe no sistema, is_read = false)
+        // 🔴 Vermelho = Não baixada (não existe no sistema)
+        
+        let colorClass = '';
+        let titleText = '';
+        let actionsHTML = '';
+        
+        if (issue) {
+            // Edição existe no sistema
+            if (issue.is_read) {
+                colorClass = 'issue-lida';  // Verde
+                titleText = `Edição #${numero}`;
+            } else {
+                colorClass = 'issue-baixada';  // Amarelo
+                titleText = `Edição #${numero}`;
+            }
+            
+            actionsHTML = `
                 <label class="checkbox-icon" title="${issue.is_read ? 'Marcar como não lida' : 'Marcar como lida'}">
                     <input type="checkbox" ${issue.is_read ? 'checked' : ''} onchange="toggleIssueRead(${issue.id}, this.checked)">
                     <span class="checkmark">${issue.is_read ? '✓' : ''}</span>
                 </label>
-                <button class="btn-icon btn-delete" onclick="deleteIssue(${issue.id}, ${issue.issue_number})" title="Deletar edição">
+                <button class="btn-icon btn-delete" onclick="deleteIssue(${issue.id}, ${numero})" title="Deletar edição">
                     🗑️
                 </button>
+            `;
+        } else {
+            // Edição NÃO existe no sistema (falta baixar)
+            colorClass = 'issue-faltante';  // Vermelho
+            titleText = `Edição #${numero} - Não baixada`;
+            actionsHTML = `
+                <button class="btn-icon btn-add-quick" onclick="adicionarEdicaoRapida(${numero})" title="Adicionar esta edição">
+                    ➕
+                </button>
+            `;
+        }
+        
+        issueCard.className = `issue-card ${colorClass}`;
+        
+        issueCard.innerHTML = `
+            <div class="issue-number">#${numero}</div>
+            <div class="issue-info">
+                <div class="issue-title">${titleText}</div>
+                ${issue && issue.date_read ? `<div class="issue-date">Lida em ${new Date(issue.date_read).toLocaleDateString('pt-BR')}</div>` : ''}
+            </div>
+            <div class="issue-actions">
+                ${actionsHTML}
             </div>
         `;
         
-        issuesList.appendChild(issueCard);
-    });
+        allIssueCards.push(issueCard);
+    }
+    
+    // Adicionar todos os cards ao DOM
+    allIssueCards.forEach(card => issuesList.appendChild(card));
+}
+
+// Função para adicionar edição rapidamente
+async function adicionarEdicaoRapida(numero) {
+    if (!currentSeriesId) return;
+    
+    try {
+        await fetchAPI(`/series/${currentSeriesId}/issues`, {
+            method: 'POST',
+            body: JSON.stringify({
+                issue_number: numero,
+                is_read: false,
+            }),
+        });
+        
+        console.log(`✅ Edição #${numero} adicionada!`);
+        loadSeriesDetail(currentSeriesId);
+        loadStats();
+    } catch (error) {
+        console.error('Error adding issue:', error);
+        alert('Erro ao adicionar edição: ' + error.message);
+    }
 }
 
 /**
