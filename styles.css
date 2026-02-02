@@ -558,10 +558,82 @@ body {
 
 .issues-list {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
     gap: 1rem;
 }
 
+/* Estilo para issue-card (novo formato) */
+.issue-card {
+    background: white;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius);
+    padding: 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    transition: var(--transition);
+}
+
+.issue-card:hover {
+    box-shadow: var(--shadow-md);
+    border-color: var(--color-primary);
+}
+
+.issue-card.read {
+    background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%);
+    border-color: #059669;
+}
+
+.issue-number {
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--color-text-secondary);
+}
+
+.issue-card.read .issue-number {
+    color: #059669;
+}
+
+.issue-info {
+    flex: 1;
+}
+
+.issue-title {
+    font-weight: 500;
+    font-size: 0.875rem;
+    color: var(--color-text);
+    margin-bottom: 0.25rem;
+}
+
+.issue-date {
+    font-size: 0.75rem;
+    color: var(--color-text-secondary);
+}
+
+.issue-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.checkbox-label {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    cursor: pointer;
+    user-select: none;
+    font-size: 0.875rem;
+}
+
+.checkbox-label input[type="checkbox"] {
+    cursor: pointer;
+}
+
+.checkbox-label span {
+    color: var(--color-text-secondary);
+}
+
+/* Mantém issue-item para compatibilidade */
 .issue-item {
     background: var(--color-surface);
     border: 2px solid var(--color-border);
