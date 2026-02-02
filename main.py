@@ -23,17 +23,33 @@ DATABASE_URL = os.getenv("DATABASE_URL")
 if not DATABASE_URL:
     DATABASE_URL = "sqlite:///./hq_manager.db"
     print("⚠️  Usando SQLite local (desenvolvimento)")
+    connect_args = {}
 else:
     if DATABASE_URL.startswith("postgres://"):
         DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
     print(f"✅ Conectando ao PostgreSQL (Railway)")
+    print(f"📊 Database URL: {DATABASE_URL[:20]}...")  # Mostrar apenas início
+    connect_args = {
+        "connect_timeout": 10,
+        "options": "-c timezone=utc"
+    }
 
-engine = create_engine(
-    DATABASE_URL,
-    pool_pre_ping=True,
-    pool_recycle=300,
-    echo=False
-)
+try:
+    engine = create_engine(
+        DATABASE_URL,
+        pool_pre_ping=True,
+        pool_recycle=300,
+        connect_args=connect_args,
+        echo=False
+    )
+    # Testar conexão
+    with engine.connect() as conn:
+        print("✅ Conexão com banco estabelecida com sucesso!")
+except Exception as e:
+    print(f"❌ ERRO ao conectar ao banco: {e}")
+    print(f"🔍 Verifique se DATABASE_URL está configurada corretamente")
+    print(f"🔍 Verifique se o PostgreSQL está rodando e acessível")
+    raise
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
