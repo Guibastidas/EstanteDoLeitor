@@ -184,6 +184,14 @@ function createSeriesCard(series) {
             
             <div class="comic-status-row">
                 <div class="comic-status ${statusClass}">${statusText}</div>
+                <div class="comic-actions">
+                    <button class="btn-icon-small btn-edit" onclick="event.stopPropagation(); editSeries(${series.id})" title="Editar HQ">
+                        ✏️
+                    </button>
+                    <button class="btn-icon-small btn-delete" onclick="event.stopPropagation(); deleteSeries(${series.id}, '${series.title.replace(/'/g, "\\'")}')" title="Excluir HQ">
+                        🗑️
+                    </button>
+                </div>
             </div>
         </div>
     `;
@@ -699,9 +707,15 @@ async function submitSeriesForm(e) {
     }
 }
 
+// Edit series
+function editSeries(seriesId) {
+    console.log('✏️ Editando série:', seriesId);
+    openModal(seriesId);
+}
+
 // Delete series
-async function deleteSeries(seriesId) {
-    if (!confirm('Tem certeza que deseja deletar esta HQ? Esta ação não pode ser desfeita.')) {
+async function deleteSeries(seriesId, seriesTitle = 'esta HQ') {
+    if (!confirm(`Tem certeza que deseja deletar "${seriesTitle}"? Esta ação não pode ser desfeita.`)) {
         return;
     }
     
