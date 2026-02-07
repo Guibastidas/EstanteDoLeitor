@@ -117,7 +117,12 @@ function displaySeries() {
         filteredSeries = allSeries.filter(s => s.read_issues >= s.total_issues && s.total_issues > 0);
     }
     
-    console.log(`🔍 Filtro "${currentFilter}": ${filteredSeries.length} séries`);
+    // ✅ CORREÇÃO 1: ORDENAR ALFABETICAMENTE
+    filteredSeries.sort((a, b) => {
+        return a.title.localeCompare(b.title, 'pt-BR', { sensitivity: 'base' });
+    });
+    
+    console.log(`🔍 Filtro "${currentFilter}": ${filteredSeries.length} séries (ordenadas alfabeticamente)`);
     
     if (filteredSeries.length === 0) {
         showEmptyState();
@@ -137,7 +142,6 @@ function displaySeries() {
 function createSeriesCard(series) {
     const card = document.createElement('div');
     card.className = 'comic-card';
-    card.onclick = () => showSeriesDetail(series.id);
     
     // Calcular progresso
     const progress = series.total_issues > 0 
@@ -155,6 +159,9 @@ function createSeriesCard(series) {
         statusClass = 'lendo';
         statusText = 'Lendo';
     }
+    
+    // Escapar título para uso seguro em atributos
+    const escapedTitle = series.title.replace(/'/g, "\\'").replace(/"/g, '&quot;');
     
     card.innerHTML = `
         <div class="comic-cover">
@@ -185,16 +192,45 @@ function createSeriesCard(series) {
             <div class="comic-status-row">
                 <div class="comic-status ${statusClass}">${statusText}</div>
                 <div class="comic-actions">
-                    <button class="btn-icon-small btn-edit" onclick="event.stopPropagation(); editSeries(${series.id})" title="Editar HQ">
+                    <button class="btn-icon-small btn-edit" data-series-id="${series.id}" title="Editar HQ">
                         ✏️
                     </button>
-                    <button class="btn-icon-small btn-delete" onclick="event.stopPropagation(); deleteSeries(${series.id}, '${series.title.replace(/'/g, "\\'")}')" title="Excluir HQ">
+                    <button class="btn-icon-small btn-delete" data-series-id="${series.id}" data-series-title="${escapedTitle}" title="Excluir HQ">
                         🗑️
                     </button>
                 </div>
             </div>
         </div>
     `;
+    
+    // ✅ CORREÇÃO 2: Event listeners corretos para os botões
+    // Adicionar event listener para o card (abrir detalhes)
+    card.addEventListener('click', (e) => {
+        // Só abre detalhes se não clicou em um botão
+        if (!e.target.closest('.btn-icon-small')) {
+            showSeriesDetail(series.id);
+        }
+    });
+    
+    // Adicionar event listeners para os botões
+    const btnEdit = card.querySelector('.btn-edit');
+    const btnDelete = card.querySelector('.btn-delete');
+    
+    if (btnEdit) {
+        btnEdit.addEventListener('click', (e) => {
+            e.stopPropagation();
+            console.log('✏️ Botão editar clicado - ID:', series.id);
+            editSeries(series.id);
+        });
+    }
+    
+    if (btnDelete) {
+        btnDelete.addEventListener('click', (e) => {
+            e.stopPropagation();
+            console.log('🗑️ Botão excluir clicado - ID:', series.id);
+            deleteSeries(series.id, series.title);
+        });
+    }
     
     return card;
 }
@@ -284,16 +320,19 @@ async function loadSeriesDetail(seriesId) {
             }
         }
         
-        // Calcular progresso considerando APENAS as edições LIDAS
-        const totalLidas = issues.filter(i => i.is_read).length;
-        const totalBaixado = issues.length;
+        // ✅ CORREÇÃO 3: USAR VALORES DA API (já vêm corretos do backend híbrido)
+        // O backend agora retorna os valores corretos:
+        // - Se há issues: calcula baseado nelas
+        // - Se não há issues: usa valores da planilha
+        const totalLidas = series.read_issues;
+        const totalBaixado = series.downloaded_issues;
         const totalPublicado = series.total_issues;
         
         const progressPercent = totalPublicado > 0 
             ? Math.round((totalLidas / totalPublicado) * 100)
             : 0;
         
-        console.log('📊 Progresso:', {
+        console.log('📊 Progresso (valores da API):', {
             lidas: totalLidas,
             baixadas: totalBaixado,
             publicadas: totalPublicado,
@@ -408,20 +447,20 @@ function displayIssues(issues, totalBaixado, totalPublicado) {
                 actionsHTML = `
                     <label class="checkbox-icon" title="Marcar como lida">
                         <input type="checkbox" onchange="toggleIssueRead(${issue.id}, this.checked)">
-                        <span class="checkmark"></span>
+                        <span class="checkmark">✓</span>
                     </label>
                     <button class="btn-icon btn-delete" onclick="deleteIssue(${issue.id}, ${numero})" title="Deletar edição">
                         🗑️
                     </button>
                 `;
             } else {
-                // 🟡 AMARELO = Baixada mas NÃO lida
+                // 🟡 BAIXADA mas não lida = AMARELO
                 colorClass = 'issue-baixada';
-                titleText = `Edição #${numero}`;
+                titleText = `Edição #${numero} - Baixada`;
                 actionsHTML = `
                     <label class="checkbox-icon" title="Marcar como lida">
                         <input type="checkbox" onchange="toggleIssueRead(${issue.id}, this.checked)">
-                        <span class="checkmark"></span>
+                        <span class="checkmark">✓</span>
                     </label>
                     <button class="btn-icon btn-delete" onclick="deleteIssue(${issue.id}, ${numero})" title="Deletar edição">
                         🗑️
@@ -429,27 +468,22 @@ function displayIssues(issues, totalBaixado, totalPublicado) {
                 `;
             }
         } else {
-            // 🔴 Edição NÃO existe no sistema = VERMELHO
+            // Edição NÃO EXISTE no sistema
+            // 🔴 FALTANTE = VERMELHO
             colorClass = 'issue-faltante';
-            if (numero < edicaoMinimaLida) {
-                titleText = `Edição #${numero} - Não baixada (anterior)`;
-            } else {
-                titleText = `Edição #${numero} - Não baixada`;
-            }
+            titleText = `Edição #${numero} - Não baixada`;
             actionsHTML = `
-                <button class="btn-icon btn-add-quick" onclick="adicionarEdicaoRapida(${numero})" title="Adicionar esta edição">
+                <button class="btn-icon btn-add" onclick="addMissingIssue(${numero})" title="Marcar como baixada">
                     ➕
                 </button>
             `;
         }
         
         issueCard.className = `issue-card ${colorClass}`;
-        
         issueCard.innerHTML = `
-            <div class="issue-number">#${numero}</div>
             <div class="issue-info">
+                <div class="issue-number">#${numero}</div>
                 <div class="issue-title">${titleText}</div>
-                ${issue && issue.date_read ? `<div class="issue-date">Lida em ${new Date(issue.date_read).toLocaleDateString('pt-BR')}</div>` : ''}
             </div>
             <div class="issue-actions">
                 ${actionsHTML}
@@ -459,44 +493,55 @@ function displayIssues(issues, totalBaixado, totalPublicado) {
         allIssueCards.push(issueCard);
     }
     
-    allIssueCards.forEach(card => issuesList.appendChild(card));
+    // Adicionar todos os cards
+    allIssueCards.forEach(card => {
+        issuesList.appendChild(card);
+    });
 }
 
-// Função para adicionar edição rapidamente
-async function adicionarEdicaoRapida(numero) {
+async function addMissingIssue(issueNumber) {
     if (!currentSeriesId) return;
     
     try {
         await fetchAPI(`/series/${currentSeriesId}/issues`, {
             method: 'POST',
             body: JSON.stringify({
-                issue_number: numero,
-                is_read: false,
-            }),
+                issue_number: issueNumber,
+                is_read: false
+            })
         });
         
-        console.log(`✅ Edição #${numero} adicionada!`);
-        loadSeriesDetail(currentSeriesId);
-        loadStats();
-        loadSeries();
+        await loadSeriesDetail(currentSeriesId);
+        await loadStats();
+        await loadSeries();
     } catch (error) {
         console.error('Error adding issue:', error);
-        alert('Erro ao adicionar edição: ' + error.message);
+        alert('Erro ao adicionar edição');
     }
 }
 
 async function sincronizarEdicoesAutomaticamente() {
     if (!currentSeriesId) return;
     
-    const btnSync = event.target;
-    btnSync.disabled = true;
-    btnSync.innerHTML = '⏳ Sincronizando...';
+    const btnSync = document.querySelector('.btn-sync');
     
     try {
-        const series = await fetchAPI(`/series/${currentSeriesId}`);
-        const existingIssues = await fetchAPI(`/series/${currentSeriesId}/issues`);
+        btnSync.disabled = true;
+        btnSync.innerHTML = '🔄 Sincronizando...';
         
+        console.log('🔄 Iniciando sincronização automática...');
+        
+        const series = await fetchAPI(`/series/${currentSeriesId}`);
         const totalPublicado = series.total_issues;
+        
+        if (!totalPublicado || totalPublicado === 0) {
+            alert('⚠️ Esta série não tem edições publicadas definidas.\nDefina o "Total de Edições Publicadas" primeiro.');
+            btnSync.disabled = false;
+            btnSync.innerHTML = '🔄 Sincronizar Edições';
+            return;
+        }
+        
+        const existingIssues = await fetchAPI(`/series/${currentSeriesId}/issues`);
         const existingNumbers = new Set(existingIssues.map(i => i.issue_number));
         
         console.log(`📊 Total publicado: ${totalPublicado}`);
@@ -551,35 +596,10 @@ async function sincronizarEdicoesAutomaticamente() {
     }
 }
 
+// ✅ CORREÇÃO 4: Botão 🔍 agora sincroniza automaticamente
 async function verificarSincronizacaoLendo() {
-    if (!currentSeriesId) return;
-    
-    try {
-        const [series, issues] = await Promise.all([
-            fetchAPI(`/series/${currentSeriesId}`),
-            fetchAPI(`/series/${currentSeriesId}/issues`)
-        ]);
-        
-        const readIssuesReal = issues.filter(i => i.is_read).length;
-        const readIssuesRegistrado = series.read_issues;
-        
-        console.log('🔍 Verificação:', {
-            'Registrado no banco': readIssuesRegistrado,
-            'Real (contando edições)': readIssuesReal,
-            'Diferença': readIssuesReal - readIssuesRegistrado
-        });
-        
-        if (readIssuesReal === readIssuesRegistrado) {
-            alert(`✅ Tudo certo!\n\nEdições lidas registradas: ${readIssuesRegistrado}\nEdições realmente lidas: ${readIssuesReal}\n\nOs valores estão sincronizados!`);
-        } else {
-            const diferenca = readIssuesReal - readIssuesRegistrado;
-            alert(`⚠️ Desincronizado!\n\nEdições lidas registradas: ${readIssuesRegistrado}\nEdições realmente lidas: ${readIssuesReal}\nDiferença: ${diferenca > 0 ? '+' : ''}${diferenca}`);
-        }
-        
-    } catch (error) {
-        console.error('Erro ao verificar:', error);
-        alert('Erro ao verificar sincronização: ' + error.message);
-    }
+    console.log('🔍 Botão verificar clicado - executando sincronização automática');
+    await sincronizarEdicoesAutomaticamente();
 }
 
 function goToHome() {
@@ -599,21 +619,21 @@ async function toggleIssueRead(issueId, isRead) {
     try {
         await fetchAPI(`/series/${currentSeriesId}/issues/${issueId}`, {
             method: 'PATCH',
-            body: JSON.stringify({ is_read: isRead }),
+            body: JSON.stringify({ is_read: isRead })
         });
         
         loadSeriesDetail(currentSeriesId);
         loadStats();
         loadSeries();
     } catch (error) {
-        console.error('Error updating issue:', error);
-        alert('Erro ao atualizar edição');
+        console.error('Error toggling issue read status:', error);
+        alert('Erro ao atualizar status da edição');
     }
 }
 
 // Delete issue
 async function deleteIssue(issueId, issueNumber) {
-    if (!confirm(`Tem certeza que deseja deletar a Edição #${issueNumber}?`)) {
+    if (!confirm(`Tem certeza que deseja deletar a edição #${issueNumber}?`)) {
         return;
     }
     
@@ -654,6 +674,9 @@ function openModal(seriesId = null) {
             document.getElementById('is_completed').checked = series.is_completed || false;
             document.getElementById('cover_url').value = series.cover_url || '';
             document.getElementById('notes').value = series.notes || '';
+            console.log('✅ Dados preenchidos no modal:', series);
+        } else {
+            console.error('❌ Série não encontrada em allSeries:', seriesId);
         }
     } else {
         title.textContent = 'Nova HQ';
@@ -707,7 +730,7 @@ async function submitSeriesForm(e) {
     }
 }
 
-// Edit series
+// Edit series (função necessária para o botão de editar)
 function editSeries(seriesId) {
     console.log('✏️ Editando série:', seriesId);
     openModal(seriesId);
@@ -759,9 +782,17 @@ function openAddIssueModal() {
         return;
     }
     
-    console.log('✅ Abrindo modal...');
     form.reset();
+    
+    const series = currentSeries;
+    if (series && series.total_issues > 0) {
+        const nextIssue = series.total_issues + 1;
+        document.getElementById('issue_number').value = nextIssue;
+        console.log(`📝 Sugerindo próxima edição: #${nextIssue}`);
+    }
+    
     modal.classList.add('active');
+    console.log('✅ Modal de edição aberto');
 }
 
 function closeIssueModal() {
@@ -772,58 +803,37 @@ function closeIssueModal() {
 async function submitIssueForm(e) {
     e.preventDefault();
     
-    console.log('📝 submitIssueForm chamada');
+    console.log('📝 Submetendo formulário de edição...');
+    console.log('📝 currentSeriesId:', currentSeriesId);
     
-    const data = {
-        issue_number: parseInt(document.getElementById('issue_number').value),
-        is_read: document.getElementById('is_read').checked,
-    };
+    if (!currentSeriesId) {
+        alert('Erro: Série não identificada');
+        return;
+    }
     
-    console.log('📊 Dados:', data);
+    const issueNumber = parseInt(document.getElementById('issue_number').value);
+    const isRead = document.getElementById('is_read').checked;
+    
+    console.log('📝 Dados:', { issueNumber, isRead });
     
     try {
         await fetchAPI(`/series/${currentSeriesId}/issues`, {
             method: 'POST',
-            body: JSON.stringify(data),
+            body: JSON.stringify({
+                issue_number: issueNumber,
+                is_read: isRead
+            })
         });
         
-        const series = await fetchAPI(`/series/${currentSeriesId}`);
-        if (data.issue_number > series.total_issues) {
-            await fetchAPI(`/series/${currentSeriesId}`, {
-                method: 'PUT',
-                body: JSON.stringify({
-                    ...series,
-                    total_issues: data.issue_number
-                }),
-            });
-        }
-        
         console.log('✅ Edição adicionada com sucesso!');
+        
         closeIssueModal();
-        loadSeriesDetail(currentSeriesId);
-        loadStats();
-        loadSeries();
+        await loadSeriesDetail(currentSeriesId);
+        await loadStats();
+        await loadSeries();
+        
     } catch (error) {
         console.error('❌ Error adding issue:', error);
         alert('Erro ao adicionar edição: ' + error.message);
     }
 }
-
-// Garantir que está no escopo global
-window.submitIssueForm = submitIssueForm;
-
-// Exportar todas as funções necessárias para o escopo global (para uso no HTML inline)
-window.filterSeries = filterSeries;
-window.handleSearch = handleSearch;
-window.clearSearch = clearSearch;
-window.showSeriesDetail = showSeriesDetail;
-window.goToHome = goToHome;
-window.adicionarEdicaoRapida = adicionarEdicaoRapida;
-window.sincronizarEdicoesAutomaticamente = sincronizarEdicoesAutomaticamente;
-window.verificarSincronizacaoLendo = verificarSincronizacaoLendo;
-window.toggleIssueRead = toggleIssueRead;
-window.deleteIssue = deleteIssue;
-window.openModal = openModal;
-window.closeModal = closeModal;
-window.submitSeriesForm = submitSeriesForm;
-window.deleteSeries = deleteSeries;
