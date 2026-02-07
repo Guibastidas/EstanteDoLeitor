@@ -228,10 +228,16 @@ def calculate_status(read_issues: int, total_issues: int) -> str:
 def series_to_response(series: SeriesDB, db: Session = None) -> dict:
     """Converter SeriesDB para resposta da API
     
-    IMPORTANTE: Recalcula os contadores baseado nas issues reais
-    para garantir que sempre estejam corretos
+    ABORDAGEM HÍBRIDA:
+    - Se há issues cadastradas: usa valores calculados (baseado nas issues)
+    - Se NÃO há issues: usa valores do banco (da planilha importada)
+    
+    Isso permite:
+    1. Mostrar valores da planilha antes de cadastrar issues
+    2. Calcular automaticamente quando issues são cadastradas
+    3. Manter integridade dos dados
     """
-    # Se db foi fornecido, recalcular contadores REAIS
+    # Se db foi fornecido, verificar se há issues cadastradas
     if db:
         from sqlalchemy import func
         
@@ -244,9 +250,17 @@ def series_to_response(series: SeriesDB, db: Session = None) -> dict:
         downloaded_real = counts.downloaded or 0
         read_real = counts.read or 0
         
-        # Atualizar no objeto (mas NÃO no banco ainda - só na resposta)
-        read_issues = read_real
-        downloaded_issues = downloaded_real
+        # ABORDAGEM HÍBRIDA:
+        # Se HÁ issues cadastradas, usar valores calculados
+        # Se NÃO HÁ issues, usar valores do banco (planilha)
+        if downloaded_real > 0:
+            # Há issues cadastradas - usar valores calculados
+            read_issues = read_real
+            downloaded_issues = downloaded_real
+        else:
+            # Não há issues - usar valores do banco (planilha)
+            read_issues = series.read_issues
+            downloaded_issues = series.downloaded_issues
     else:
         # Sem db, usar valores do banco
         read_issues = series.read_issues
@@ -260,8 +274,8 @@ def series_to_response(series: SeriesDB, db: Session = None) -> dict:
         "author": series.author,
         "publisher": series.publisher,
         "total_issues": series.total_issues,
-        "downloaded_issues": downloaded_issues,  # ← RECALCULADO
-        "read_issues": read_issues,  # ← RECALCULADO
+        "downloaded_issues": downloaded_issues,
+        "read_issues": read_issues,
         "is_completed": series.is_completed,
         "series_type": series.series_type,
         "cover_url": series.cover_url,
