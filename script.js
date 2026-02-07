@@ -529,10 +529,18 @@ async function sincronizarEdicoesAutomaticamente() {
         btnSync.disabled = true;
         btnSync.innerHTML = '🔄 Sincronizando...';
         
-        console.log('🔄 Iniciando sincronização automática...');
+        console.log('🔄 Iniciando sincronização INTELIGENTE...');
         
         const series = await fetchAPI(`/series/${currentSeriesId}`);
         const totalPublicado = series.total_issues;
+        const quantidadeLendo = series.read_issues; // Valor da planilha
+        const quantidadeBaixadas = series.downloaded_issues; // Valor da planilha
+        
+        console.log('📊 Valores da planilha:', {
+            total: totalPublicado,
+            lendo: quantidadeLendo,
+            baixadas: quantidadeBaixadas
+        });
         
         if (!totalPublicado || totalPublicado === 0) {
             alert('⚠️ Esta série não tem edições publicadas definidas.\nDefina o "Total de Edições Publicadas" primeiro.');
@@ -562,18 +570,28 @@ async function sincronizarEdicoesAutomaticamente() {
         }
         
         console.log(`🔄 Adicionando ${missingIssues.length} edições faltantes...`);
+        console.log(`📖 Marcando edições #1 até #${quantidadeLendo} como LIDAS`);
         
         let adicionadas = 0;
         for (const numero of missingIssues) {
             try {
+                // ✅ CORREÇÃO: Marcar como lida se estiver dentro do range "lendo"
+                const isRead = numero <= quantidadeLendo;
+                
                 await fetchAPI(`/series/${currentSeriesId}/issues`, {
                     method: 'POST',
                     body: JSON.stringify({
                         issue_number: numero,
-                        is_read: false
+                        is_read: isRead  // ← Usa valor inteligente baseado na planilha
                     })
                 });
                 adicionadas++;
+                
+                if (isRead) {
+                    console.log(`  ✅ Edição #${numero} adicionada como LIDA`);
+                } else {
+                    console.log(`  📥 Edição #${numero} adicionada como BAIXADA`);
+                }
             } catch (error) {
                 console.error(`❌ Erro ao adicionar edição #${numero}:`, error);
             }
@@ -585,7 +603,7 @@ async function sincronizarEdicoesAutomaticamente() {
         await loadStats();
         await loadSeries();
         
-        alert(`✅ Sincronização completa!\n${adicionadas} edições adicionadas.`);
+        alert(`✅ Sincronização inteligente completa!\n\n${adicionadas} edições adicionadas:\n- Lidas: #1 até #${quantidadeLendo}\n- Baixadas: #${quantidadeLendo + 1} até #${totalPublicado}`);
         
     } catch (error) {
         console.error('Erro na sincronização:', error);
@@ -617,17 +635,28 @@ function goToHome() {
 // Toggle issue read status
 async function toggleIssueRead(issueId, isRead) {
     try {
+        console.log(`🔄 Alterando status da edição ${issueId} para ${isRead ? 'LIDA' : 'NÃO LIDA'}`);
+        
         await fetchAPI(`/series/${currentSeriesId}/issues/${issueId}`, {
             method: 'PATCH',
             body: JSON.stringify({ is_read: isRead })
         });
         
+        console.log('✅ Status alterado com sucesso');
+        
         loadSeriesDetail(currentSeriesId);
         loadStats();
         loadSeries();
     } catch (error) {
-        console.error('Error toggling issue read status:', error);
-        alert('Erro ao atualizar status da edição');
+        console.error('❌ Error toggling issue read status:', error);
+        
+        // Reverter checkbox se der erro
+        const checkbox = event.target;
+        if (checkbox) {
+            checkbox.checked = !isRead;
+        }
+        
+        alert('⚠️ Erro ao atualizar status da edição.\n\nPossíveis causas:\n• A edição não existe no banco de dados\n• Problema de conexão com o servidor\n\nTente recarregar a página ou sincronizar as edições novamente.');
     }
 }
 

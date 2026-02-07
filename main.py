@@ -541,10 +541,8 @@ async def create_issue(series_id: int, issue: IssueCreate, db: Session = Depends
         
         db.add(db_issue)
         
-        # Atualizar contadores da série
-        series.downloaded_issues += 1
-        if issue.is_read:
-            series.read_issues += 1
+        # ✅ CORREÇÃO: NÃO atualizar contadores aqui
+        # O backend híbrido calcula automaticamente baseado nas issues
         
         db.commit()
         db.refresh(db_issue)
@@ -578,25 +576,69 @@ async def update_issue(issue_id: int, issue_update: IssueUpdate, db: Session = D
             raise HTTPException(status_code=404, detail="Edição não encontrada")
         
         # Atualizar status de leitura
-        was_read = db_issue.is_read
         db_issue.is_read = issue_update.is_read
         
-        if issue_update.is_read and not was_read:
+        if issue_update.is_read:
             db_issue.date_read = datetime.now().isoformat()
-            # Incrementar contador da série
-            series = db.query(SeriesDB).filter(SeriesDB.id == db_issue.series_id).first()
-            if series:
-                series.read_issues += 1
-        elif not issue_update.is_read and was_read:
+        else:
             db_issue.date_read = None
-            # Decrementar contador da série
-            series = db.query(SeriesDB).filter(SeriesDB.id == db_issue.series_id).first()
-            if series:
-                series.read_issues = max(0, series.read_issues - 1)
+        
+        # ✅ CORREÇÃO: NÃO atualizar contadores aqui
+        # O backend híbrido calcula automaticamente
         
         db.commit()
         db.refresh(db_issue)
         
+        return {
+            "id": db_issue.id,
+            "series_id": db_issue.series_id,
+            "issue_number": db_issue.issue_number,
+            "title": db_issue.title,
+            "is_read": db_issue.is_read,
+            "is_downloaded": db_issue.is_downloaded,
+            "date_added": db_issue.date_added,
+            "date_read": db_issue.date_read
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        print(f"Erro ao atualizar edição: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.patch("/series/{series_id}/issues/{issue_id}")
+async def patch_issue_read_status(
+    series_id: int,
+    issue_id: int,
+    update_data: dict,
+    db: Session = Depends(get_db)
+):
+    """✅ CORREÇÃO: Atualizar status de leitura (PATCH method no caminho correto)"""
+    try:
+        # Buscar a edição
+        db_issue = db.query(IssueDB).filter(
+            IssueDB.id == issue_id,
+            IssueDB.series_id == series_id
+        ).first()
+        
+        if not db_issue:
+            raise HTTPException(status_code=404, detail="Edição não encontrada")
+        
+        # Atualizar apenas is_read se fornecido
+        if "is_read" in update_data:
+            db_issue.is_read = update_data["is_read"]
+            
+            if update_data["is_read"]:
+                db_issue.date_read = datetime.now().isoformat()
+            else:
+                db_issue.date_read = None
+        
+        db.commit()
+        db.refresh(db_issue)
+        
+        # Retornar a edição atualizada
         return {
             "id": db_issue.id,
             "series_id": db_issue.series_id,
@@ -625,12 +667,31 @@ async def delete_issue(issue_id: int, db: Session = Depends(get_db)):
         if not db_issue:
             raise HTTPException(status_code=404, detail="Edição não encontrada")
         
-        # Atualizar contadores da série
-        series = db.query(SeriesDB).filter(SeriesDB.id == db_issue.series_id).first()
-        if series:
-            series.downloaded_issues = max(0, series.downloaded_issues - 1)
-            if db_issue.is_read:
-                series.read_issues = max(0, series.read_issues - 1)
+        # NÃO atualizar contadores - deixar para o cálculo híbrido
+        db.delete(db_issue)
+        db.commit()
+        
+        return {"message": "Edição deletada com sucesso"}
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        print(f"Erro ao deletar edição: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.delete("/series/{series_id}/issues/{issue_id}")
+async def delete_issue_alt(series_id: int, issue_id: int, db: Session = Depends(get_db)):
+    """Deletar edição (caminho alternativo com series_id)"""
+    try:
+        db_issue = db.query(IssueDB).filter(
+            IssueDB.id == issue_id,
+            IssueDB.series_id == series_id
+        ).first()
+        
+        if not db_issue:
+            raise HTTPException(status_code=404, detail="Edição não encontrada")
         
         db.delete(db_issue)
         db.commit()
