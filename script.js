@@ -364,11 +364,11 @@ function createIssueCard(issue) {
     card.className = `issue-card ${colorClass}`;
     
     card.innerHTML = `
-        <div class="issue-number">#${issue.issue_number}</div>
         <div class="issue-info">
+            <div class="issue-number">#${issue.issue_number}</div>
             ${issue.title ? `<div class="issue-title">${issue.title}</div>` : ''}
             <div class="issue-status">
-                ${issue.is_downloaded ? '<span class="badge badge-downloaded">📥 Baixada</span>' : '<span class="badge badge-missing">❌ Não baixada</span>'}
+                ${issue.is_downloaded ? '<span class="badge badge-downloaded">📥 Baixada</span>' : '<span class="badge badge-missing">❌ Falta baixar</span>'}
                 ${issue.is_read ? '<span class="badge badge-read">✅ Lida</span>' : ''}
             </div>
         </div>
@@ -376,9 +376,9 @@ function createIssueCard(issue) {
             <label class="checkbox-label" title="${issue.is_read ? 'Marcar como não lida' : 'Marcar como lida'}">
                 <input type="checkbox" ${issue.is_read ? 'checked' : ''} 
                        onchange="toggleIssueRead(${issue.id}, this.checked)">
-                <span>${issue.is_read ? '✓' : ''}</span>
+                <span></span>
             </label>
-            <button class="btn-icon-mini btn-delete-issue" 
+            <button class="btn-delete-issue" 
                     onclick="deleteIssue(${issue.id}, ${issue.issue_number})"
                     title="Deletar edição">
                 🗑️
