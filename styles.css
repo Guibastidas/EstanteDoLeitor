@@ -623,49 +623,104 @@ body {
     margin-bottom: 1rem;
 }
 
+/* ===================================
+   VISUALIZAÇÃO EM QUADRADINHOS - EDIÇÕES
+   =================================== */
+
+/* Container da lista de edições - GRID */
 .issues-list {
     display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
     gap: 0.75rem;
+    padding: 1rem 0;
 }
 
+/* Card da edição - QUADRADINHO */
 .issue-card {
+    aspect-ratio: 1;
     display: flex;
-    justify-content: space-between;
+    flex-direction: column;
     align-items: center;
-    padding: 1rem;
-    border-radius: var(--radius);
-    border: 1px solid var(--color-border);
-    transition: var(--transition);
+    justify-content: center;
+    padding: 0.5rem;
+    border-radius: 8px;
+    border: 2px solid;
+    transition: all 0.2s ease;
+    cursor: pointer;
+    position: relative;
+    min-height: 80px;
 }
 
 .issue-card:hover {
-    transform: translateX(4px);
+    transform: translateY(-4px) scale(1.05);
+    z-index: 10;
 }
 
+/* Info da edição - apenas número */
 .issue-info {
     display: flex;
+    flex-direction: column;
     align-items: center;
-    gap: 1rem;
+    justify-content: center;
+    gap: 0.25rem;
+    flex: 1;
+    width: 100%;
 }
 
 .issue-number {
     font-weight: 700;
-    font-size: 0.875rem;
-    padding: 0.375rem 0.75rem;
-    border-radius: var(--radius);
-    background: var(--color-surface);
-    color: var(--color-text);
+    font-size: 1.25rem;
+    line-height: 1;
+    padding: 0;
+    background: transparent !important;
+    color: inherit;
 }
 
 .issue-title {
-    font-size: 0.875rem;
-    color: var(--color-text);
+    display: none; /* Esconde o título para manter compacto */
 }
 
+/* Ações - aparecem no hover */
 .issue-actions {
+    position: absolute;
+    top: 4px;
+    right: 4px;
+    display: none;
+    gap: 0.25rem;
+    flex-direction: column;
+}
+
+.issue-card:hover .issue-actions {
     display: flex;
-    gap: 0.5rem;
-    align-items: center;
+}
+
+/* Ícones menores para quadradinhos */
+.issue-actions .checkbox-icon {
+    width: 24px;
+    height: 24px;
+}
+
+.issue-actions .checkmark {
+    width: 20px;
+    height: 20px;
+    font-size: 0.75rem;
+}
+
+.issue-actions .btn-icon {
+    width: 24px;
+    height: 24px;
+    font-size: 0.875rem;
+}
+
+.issue-card.issue-faltante .issue-actions {
+    position: static;
+    display: flex;
+    margin-top: 0.25rem;
+}
+
+.issue-card.issue-faltante .btn-icon.btn-add {
+    width: 28px;
+    height: 28px;
 }
 
 .checkbox-icon {
@@ -950,6 +1005,36 @@ body {
     .form-row {
         grid-template-columns: 1fr;
     }
+    
+    /* Quadradinhos menores no mobile */
+    .issues-list {
+        grid-template-columns: repeat(auto-fill, minmax(60px, 1fr));
+        gap: 0.5rem;
+    }
+    
+    .issue-card {
+        min-height: 60px;
+    }
+    
+    .issue-number {
+        font-size: 1rem;
+    }
+}
+
+/* Quadradinhos maiores em telas grandes */
+@media (min-width: 1200px) {
+    .issues-list {
+        grid-template-columns: repeat(auto-fill, minmax(90px, 1fr));
+        gap: 1rem;
+    }
+    
+    .issue-card {
+        min-height: 90px;
+    }
+    
+    .issue-number {
+        font-size: 1.5rem;
+    }
 }
 
 /* Scrollbar */
@@ -1081,83 +1166,69 @@ body {
 }
 
 /* ===================================
-   SISTEMA DE CORES DAS EDIÇÕES
+   SISTEMA DE CORES - QUADRADINHOS
    =================================== */
 
 /* 🟢 VERDE - Edição lida */
 .issue-card.issue-lida {
     background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%);
-    border-left: 4px solid #10b981;
+    border-color: #10b981;
+    color: #065f46;
 }
 
 .issue-card.issue-lida:hover {
     background: linear-gradient(135deg, #a7f3d0 0%, #6ee7b7 100%);
-    box-shadow: 0 4px 12px rgba(16, 185, 129, 0.2);
-}
-
-.issue-card.issue-lida .issue-number {
-    background: #10b981;
-    color: white;
+    box-shadow: 0 6px 16px rgba(16, 185, 129, 0.3);
 }
 
 /* 🟡 AMARELO - Edição baixada mas não lida */
 .issue-card.issue-baixada {
     background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
-    border-left: 4px solid #f59e0b;
+    border-color: #f59e0b;
+    color: #78350f;
 }
 
 .issue-card.issue-baixada:hover {
     background: linear-gradient(135deg, #fde68a 0%, #fcd34d 100%);
-    box-shadow: 0 4px 12px rgba(245, 158, 11, 0.2);
+    box-shadow: 0 6px 16px rgba(245, 158, 11, 0.3);
 }
 
-.issue-card.issue-baixada .issue-number {
-    background: #f59e0b;
-    color: white;
-}
-
-/* 🔴 VERMELHO - Edição não baixada (falta baixar) */
+/* 🔴 VERMELHO - Edição não baixada */
 .issue-card.issue-faltante {
     background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%);
-    border-left: 4px solid #ef4444;
+    border-color: #ef4444;
+    color: #991b1b;
     opacity: 0.85;
 }
 
 .issue-card.issue-faltante:hover {
     background: linear-gradient(135deg, #fecaca 0%, #fca5a5 100%);
-    box-shadow: 0 4px 12px rgba(239, 68, 68, 0.2);
+    box-shadow: 0 6px 16px rgba(239, 68, 68, 0.3);
     opacity: 1;
 }
 
-.issue-card.issue-faltante .issue-number {
-    background: #ef4444;
-    color: white;
+/* Indicador de status - pequeno ponto no canto superior esquerdo */
+.issue-card::before {
+    content: '';
+    position: absolute;
+    top: 6px;
+    left: 6px;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    opacity: 0.7;
 }
 
-.issue-card.issue-faltante .issue-title {
-    color: #991b1b;
-    font-style: italic;
-}
-
-/* Botão de adicionar rápido */
-.btn-add-quick {
+.issue-card.issue-lida::before {
     background: #10b981;
-    color: white;
-    border: none;
-    padding: 8px 12px;
-    border-radius: 6px;
-    cursor: pointer;
-    font-size: 1.1rem;
-    transition: all 0.2s;
 }
 
-.btn-add-quick:hover {
-    background: #059669;
-    transform: scale(1.1);
+.issue-card.issue-baixada::before {
+    background: #f59e0b;
 }
 
-.btn-add-quick:active {
-    transform: scale(0.95);
+.issue-card.issue-faltante::before {
+    background: #ef4444;
 }
 
 /* Botão de sincronização */
