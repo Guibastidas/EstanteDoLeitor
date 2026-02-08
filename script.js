@@ -347,14 +347,28 @@ function displayIssues(issues) {
 
 function createIssueCard(issue) {
     const card = document.createElement('div');
-    card.className = `issue-card ${issue.is_read ? 'read' : 'unread'}`;
+    
+    // 🎨 SISTEMA DE CORES:
+    // 🟢 VERDE (issue-lida) = Edição lida
+    // 🟡 AMARELO (issue-baixada) = Edição baixada mas não lida
+    // 🔴 VERMELHO (issue-faltante) = Edição não baixada
+    
+    let colorClass = 'issue-faltante'; // Padrão: vermelho (não baixada)
+    
+    if (issue.is_read) {
+        colorClass = 'issue-lida'; // Verde: lida
+    } else if (issue.is_downloaded) {
+        colorClass = 'issue-baixada'; // Amarelo: baixada mas não lida
+    }
+    
+    card.className = `issue-card ${colorClass}`;
     
     card.innerHTML = `
         <div class="issue-number">#${issue.issue_number}</div>
         <div class="issue-info">
             ${issue.title ? `<div class="issue-title">${issue.title}</div>` : ''}
             <div class="issue-status">
-                ${issue.is_downloaded ? '<span class="badge badge-downloaded">📥 Baixada</span>' : ''}
+                ${issue.is_downloaded ? '<span class="badge badge-downloaded">📥 Baixada</span>' : '<span class="badge badge-missing">❌ Não baixada</span>'}
                 ${issue.is_read ? '<span class="badge badge-read">✅ Lida</span>' : ''}
             </div>
         </div>
