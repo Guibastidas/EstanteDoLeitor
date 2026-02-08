@@ -362,6 +362,7 @@ function createIssueCard(issue) {
     }
     
     card.className = `issue-card ${colorClass}`;
+    card.style.cursor = 'pointer'; // Adicionar cursor pointer para indicar que é clicável
     
     card.innerHTML = `
         <div class="issue-info">
@@ -375,16 +376,44 @@ function createIssueCard(issue) {
         <div class="issue-actions">
             <label class="checkbox-label" title="${issue.is_read ? 'Marcar como não lida' : 'Marcar como lida'}">
                 <input type="checkbox" ${issue.is_read ? 'checked' : ''} 
-                       onchange="toggleIssueRead(${issue.id}, this.checked)">
+                       data-issue-id="${issue.id}">
                 <span></span>
             </label>
             <button class="btn-delete-issue" 
-                    onclick="deleteIssue(${issue.id}, ${issue.issue_number})"
+                    data-issue-id="${issue.id}"
+                    data-issue-number="${issue.issue_number}"
                     title="Deletar edição">
                 🗑️
             </button>
         </div>
     `;
+    
+    // Event listener para o card inteiro - alterna o status ao clicar
+    card.addEventListener('click', (e) => {
+        // Não fazer nada se clicar no botão de deletar ou no checkbox
+        if (e.target.closest('.btn-delete-issue') || e.target.closest('.checkbox-label')) {
+            return;
+        }
+        
+        // Alternar o status
+        const checkbox = card.querySelector('input[type="checkbox"]');
+        checkbox.checked = !checkbox.checked;
+        toggleIssueRead(issue.id, checkbox.checked);
+    });
+    
+    // Event listener para o checkbox
+    const checkbox = card.querySelector('input[type="checkbox"]');
+    checkbox.addEventListener('change', (e) => {
+        e.stopPropagation(); // Evitar que o clique no checkbox dispare o clique do card
+        toggleIssueRead(issue.id, e.target.checked);
+    });
+    
+    // Event listener para o botão de deletar
+    const deleteBtn = card.querySelector('.btn-delete-issue');
+    deleteBtn.addEventListener('click', (e) => {
+        e.stopPropagation(); // Evitar que o clique no botão dispare o clique do card
+        deleteIssue(issue.id, issue.issue_number);
+    });
     
     return card;
 }
