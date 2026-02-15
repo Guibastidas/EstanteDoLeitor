@@ -420,8 +420,8 @@ async def create_series(series: SeriesCreate, db: Session = Depends(get_db)):
             cover_url=series.cover_url,
             notes=series.notes,
             saga_editions=series.saga_editions,
-            main_issues=series.main_issues,
-            tie_in_issues=series.tie_in_issues,
+            main_issues=series.main_issues or 0,
+            tie_in_issues=series.tie_in_issues or 0,
             date_added=datetime.now().isoformat(),
             date_updated=datetime.now().isoformat()
         )
