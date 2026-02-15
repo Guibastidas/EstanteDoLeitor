@@ -1404,6 +1404,14 @@ function editSeries(seriesId) {
     openModal(seriesId);
 }
 
+function editarSerieAtual() {
+    if (!currentSeriesId) {
+        console.error('Nenhuma série selecionada');
+        return;
+    }
+    openModal(currentSeriesId);
+}
+
 async function deleteSeries(seriesId, seriesTitle = 'esta HQ') {
     if (!confirm(`Deletar "${seriesTitle}"?`)) return;
     
