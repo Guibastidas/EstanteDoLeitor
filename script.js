@@ -1381,6 +1381,15 @@ async function submitSeriesForm(e) {
         tie_in_issues: parseInt(document.getElementById('tie_in_issues').value) || 0,
     };
     
+    // ✅ CORREÇÃO: Quando editar, incluir downloaded_issues e read_issues para não zerar!
+    if (seriesId) {
+        const series = allSeries.find(s => s.id === parseInt(seriesId));
+        if (series) {
+            data.downloaded_issues = series.downloaded_issues || 0;
+            data.read_issues = series.read_issues || 0;
+        }
+    }
+    
     try {
         if (seriesId) {
             await fetchAPI(`/series/${seriesId}`, {
