@@ -254,7 +254,7 @@
                                 <div class="info-actions">
                                     <button class="btn-action-detail" onclick="aumentarTotalIssues()">📚 +1 Total</button>
                                     <button class="btn-action-detail btn-success" onclick="openAddIssueModal()">➕ Baixada</button>
-                                    <button class="btn-action-detail btn-secondary" onclick="recalcularEdicoes()">🔄 Recalc.</button>
+                                    <button class="btn-action-detail btn-secondary" onclick="recalcularEdicoes(event)">🔄 Recalc.</button>
                                     <button class="btn-action-detail btn-warning" onclick="editarSerieAtual()">✏️ Editar</button>
                                 </div>
                             </div>
@@ -273,7 +273,7 @@
                                         <button class="btn-sync-inline btn-mark-all btn-mark-not-downloaded" onclick="marcarTodasComoNaoBaixadas()" title="Marcar todas como não baixadas">
                                             ❌ Todas Não Baixadas
                                         </button>
-                                        <button class="btn-sync-inline" onclick="sincronizarEdicoesAutomaticamente()">
+                                        <button class="btn-sync-inline" onclick="sincronizarEdicoesAutomaticamente(event)">
                                             🔄 Sincronizar
                                         </button>
                                     </div>

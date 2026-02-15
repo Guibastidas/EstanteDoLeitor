@@ -916,7 +916,7 @@ async function submitIssueForm(e) {
 
 // ==================== RECALCULAR EDIÇÕES ====================
 
-async function recalcularEdicoes() {
+async function recalcularEdicoes(event) {
     if (!currentSeriesId || !currentSeries) {
         alert('Erro: Série não identificada');
         return;
@@ -936,7 +936,7 @@ async function recalcularEdicoes() {
     if (!confirmacao) return;
     
     // Mostrar loading no botão
-    const button = event.target;
+    const button = event ? event.target : document.querySelector('[onclick*="recalcularEdicoes"]');
     const originalText = button.innerHTML;
     button.innerHTML = '⏳ Recalculando...';
     button.disabled = true;
@@ -980,9 +980,9 @@ async function recalcularEdicoes() {
 }
 
 // Sincronizar edições
-async function sincronizarEdicoesAutomaticamente() {
+async function sincronizarEdicoesAutomaticamente(event) {
     if (!currentSeriesId || !currentSeries) {
-        alert('Erro: Série não identificada');
+        alert('Erro: Série não identificrada');
         return;
     }
     
@@ -997,7 +997,7 @@ async function sincronizarEdicoesAutomaticamente() {
     if (!confirmacao) return;
     
     // Mostrar loading no botão
-    const button = event.target;
+    const button = event ? event.target : document.querySelector('[onclick*="sincronizarEdicoesAutomaticamente"]');
     const originalText = button.innerHTML;
     button.innerHTML = '⏳ Sincronizando...';
     button.disabled = true;
