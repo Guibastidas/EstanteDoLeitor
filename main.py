@@ -419,6 +419,9 @@ async def create_series(series: SeriesCreate, db: Session = Depends(get_db)):
             series_type=series.series_type,
             cover_url=series.cover_url,
             notes=series.notes,
+            saga_editions=series.saga_editions,
+            main_issues=series.main_issues,
+            tie_in_issues=series.tie_in_issues,
             date_added=datetime.now().isoformat(),
             date_updated=datetime.now().isoformat()
         )
@@ -455,6 +458,9 @@ async def update_series(series_id: int, series: SeriesUpdate, db: Session = Depe
         db_series.series_type = series.series_type
         db_series.cover_url = series.cover_url
         db_series.notes = series.notes
+        db_series.saga_editions = series.saga_editions
+        db_series.main_issues = series.main_issues
+        db_series.tie_in_issues = series.tie_in_issues
         db_series.date_updated = datetime.now().isoformat()
         
         db.commit()
