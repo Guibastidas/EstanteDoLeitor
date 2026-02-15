@@ -919,25 +919,13 @@ async function submitIssueForm(e) {
 async function recalcularEdicoes(event) {
     if (!currentSeriesId || !currentSeries) {
         alert('Erro: Série não identificada');
-        console.error('❌ Série não identificada:', {currentSeriesId, currentSeries});
-        return;
-    }
-    
-    console.log('📊 Dados atuais da série:', currentSeries);
-    console.log('📊 Total issues:', currentSeries.total_issues);
-    console.log('📊 Read issues:', currentSeries.read_issues);
-    
-    if (!currentSeries.total_issues || currentSeries.total_issues === 0) {
-        alert('⚠️ ERRO: Total de edições está ZERO!\n\nVerifique se a série tem o total de edições cadastrado corretamente.');
-        console.error('❌ Total issues é 0!', currentSeries);
         return;
     }
     
     const confirmacao = confirm(
         `⚠️ RECALCULAR EDIÇÕES BASEADO NA PLANILHA\n\n` +
         `Série: ${currentSeries.title}\n` +
-        `Total (planilha): ${currentSeries.total_issues}\n` +
-        `Lidas (planilha): ${currentSeries.read_issues}\n\n` +
+        `Total (planilha): ${currentSeries.total_issues}\n\n` +
         `Isso vai:\n` +
         `• Deletar TODAS as edições atuais\n` +
         `• Criar edições de 1 até ${currentSeries.total_issues}\n` +
@@ -954,19 +942,14 @@ async function recalcularEdicoes(event) {
     button.disabled = true;
     
     try {
-        console.log('🗑️ Deletando edições existentes...');
         // Deletar edições existentes
         const issuesExistentes = await fetchAPI(`/series/${currentSeriesId}/issues`);
-        console.log(`📝 ${issuesExistentes.length} edições encontradas para deletar`);
-        
         for (const issue of issuesExistentes) {
             await fetchAPI(`/series/${currentSeriesId}/issues/${issue.id}`, {
                 method: 'DELETE'
             });
         }
-        console.log('✅ Edições deletadas');
         
-        console.log(`📝 Criando ${currentSeries.total_issues} novas edições...`);
         // Criar novas edições
         for (let i = 1; i <= currentSeries.total_issues; i++) {
             const isLida = i <= currentSeries.read_issues;
@@ -978,20 +961,13 @@ async function recalcularEdicoes(event) {
                     is_read: isLida
                 })
             });
-            
-            if (i % 10 === 0) {
-                console.log(`📝 Criadas ${i}/${currentSeries.total_issues} edições...`);
-            }
         }
-        console.log('✅ Todas edições criadas');
         
-        alert(`✅ ${currentSeries.total_issues} edições recriadas com sucesso!`);
+        alert(`✅ ${currentSeries.total_issues} edições recriadas!`);
         
-        console.log('🔄 Recarregando dados...');
         await loadSeriesDetail(currentSeriesId);
         await loadStats();
         await loadSeries();
-        console.log('✅ Dados recarregados');
         
     } catch (error) {
         console.error('❌ Erro ao recalcular:', error);
@@ -1006,26 +982,12 @@ async function recalcularEdicoes(event) {
 // Sincronizar edições
 async function sincronizarEdicoesAutomaticamente(event) {
     if (!currentSeriesId || !currentSeries) {
-        alert('Erro: Série não identificada');
-        console.error('❌ Série não identificada:', {currentSeriesId, currentSeries});
-        return;
-    }
-    
-    console.log('📊 Dados atuais da série:', currentSeries);
-    console.log('📊 Total issues:', currentSeries.total_issues);
-    console.log('📊 Read issues:', currentSeries.read_issues);
-    
-    if (!currentSeries.total_issues || currentSeries.total_issues === 0) {
-        alert('⚠️ ERRO: Total de edições está ZERO!\n\nVerifique se a série tem o total de edições cadastrado corretamente.');
-        console.error('❌ Total issues é 0!', currentSeries);
+        alert('Erro: Série não identificrada');
         return;
     }
     
     const confirmacao = confirm(
         `🔄 Sincronizar Edições\n\n` +
-        `Série: ${currentSeries.title}\n` +
-        `Total: ${currentSeries.total_issues}\n` +
-        `Lidas: ${currentSeries.read_issues}\n\n` +
         `Criar ${currentSeries.total_issues} edições automaticamente?\n` +
         `• Edições 1 a ${currentSeries.read_issues}: Marcadas como LIDAS\n` +
         `• Edições ${currentSeries.read_issues + 1} a ${currentSeries.total_issues}: Não lidas\n\n` +
@@ -1041,19 +1003,14 @@ async function sincronizarEdicoesAutomaticamente(event) {
     button.disabled = true;
     
     try {
-        console.log('🗑️ Deletando edições existentes...');
         // Deletar existentes
         const issuesExistentes = await fetchAPI(`/series/${currentSeriesId}/issues`);
-        console.log(`📝 ${issuesExistentes.length} edições encontradas para deletar`);
-        
         for (const issue of issuesExistentes) {
             await fetchAPI(`/series/${currentSeriesId}/issues/${issue.id}`, {
                 method: 'DELETE'
             });
         }
-        console.log('✅ Edições deletadas');
         
-        console.log(`📝 Criando ${currentSeries.total_issues} novas edições...`);
         // Criar novas
         for (let i = 1; i <= currentSeries.total_issues; i++) {
             await fetchAPI(`/series/${currentSeriesId}/issues`, {
@@ -1063,20 +1020,13 @@ async function sincronizarEdicoesAutomaticamente(event) {
                     is_read: i <= currentSeries.read_issues
                 })
             });
-            
-            if (i % 10 === 0) {
-                console.log(`📝 Criadas ${i}/${currentSeries.total_issues} edições...`);
-            }
         }
-        console.log('✅ Todas edições criadas');
         
-        alert(`✅ ${currentSeries.total_issues} edições sincronizadas com sucesso!`);
+        alert(`✅ ${currentSeries.total_issues} edições sincronizadas!`);
         
-        console.log('🔄 Recarregando dados...');
         await loadSeriesDetail(currentSeriesId);
         await loadStats();
         await loadSeries();
-        console.log('✅ Dados recarregados');
         
     } catch (error) {
         console.error('❌ Erro:', error);
@@ -1362,7 +1312,7 @@ function updateSagaTotal() {
 }
 
 // Modal Functions
-function openModal(seriesId = null) {
+async function openModal(seriesId = null) {
     console.log('🔓 Abrindo modal...', seriesId ? `(editar ID: ${seriesId})` : '(novo)');
     
     const modal = document.getElementById('series-modal');
@@ -1373,8 +1323,13 @@ function openModal(seriesId = null) {
     
     if (seriesId) {
         title.textContent = 'Editar HQ';
-        const series = allSeries.find(s => s.id === seriesId);
-        if (series) {
+        
+        try {
+            // ✅ BUSCAR DADOS FRESCOS DO BACKEND!
+            console.log('🔄 Buscando dados atuais do backend...');
+            const series = await fetchAPI(`/series/${seriesId}`);
+            console.log('📊 Dados recebidos do backend:', series);
+            
             document.getElementById('series-id').value = series.id;
             document.getElementById('title').value = series.title;
             document.getElementById('author').value = series.author || '';
@@ -1387,9 +1342,15 @@ function openModal(seriesId = null) {
             document.getElementById('saga_editions').value = series.saga_editions || '';
             document.getElementById('main_issues').value = series.main_issues || 0;
             document.getElementById('tie_in_issues').value = series.tie_in_issues || 0;
-            console.log('✅ Dados preenchidos');
-        } else {
-            console.error('❌ Série não encontrada:', seriesId);
+            console.log('✅ Dados preenchidos:', {
+                total_issues: series.total_issues,
+                downloaded_issues: series.downloaded_issues,
+                read_issues: series.read_issues
+            });
+        } catch (error) {
+            console.error('❌ Erro ao buscar dados da série:', error);
+            alert('Erro ao carregar dados da série');
+            return;
         }
     } else {
         title.textContent = 'Nova HQ';
@@ -1431,25 +1392,33 @@ async function submitSeriesForm(e) {
         tie_in_issues: parseInt(document.getElementById('tie_in_issues').value) || 0,
     };
     
-    // ✅ CORREÇÃO: Quando editar, BUSCAR dados atuais do backend para preservar tudo!
+    // ✅ CORREÇÃO DEFINITIVA: Buscar dados FRESCOS do backend antes de salvar!
     if (seriesId) {
         try {
+            console.log('🔄 Buscando dados atuais do backend antes de salvar...');
             const seriesAtual = await fetchAPI(`/series/${seriesId}`);
-            // Preservar downloaded_issues e read_issues do backend
+            console.log('📊 Dados atuais do backend:', seriesAtual);
+            
+            // Preservar campos calculados do backend
             data.downloaded_issues = seriesAtual.downloaded_issues || 0;
             data.read_issues = seriesAtual.read_issues || 0;
-            console.log('✅ Preservando valores:', {
-                downloaded: data.downloaded_issues,
-                read: data.read_issues
+            
+            // Se o total_issues não foi alterado no form, preservar o valor do backend
+            const totalIssuesForm = parseInt(document.getElementById('total_issues').value);
+            if (!totalIssuesForm || totalIssuesForm === 0) {
+                data.total_issues = seriesAtual.total_issues || 0;
+                console.log('⚠️ total_issues estava 0 no form, preservando valor do backend:', data.total_issues);
+            }
+            
+            console.log('✅ Valores preservados:', {
+                total_issues: data.total_issues,
+                downloaded_issues: data.downloaded_issues,
+                read_issues: data.read_issues
             });
         } catch (error) {
             console.error('Erro ao buscar série atual:', error);
-            // Fallback: tentar usar allSeries
-            const series = allSeries.find(s => s.id === parseInt(seriesId));
-            if (series) {
-                data.downloaded_issues = series.downloaded_issues || 0;
-                data.read_issues = series.read_issues || 0;
-            }
+            alert('Erro ao buscar dados atuais da série');
+            return;
         }
     }
     
@@ -1476,22 +1445,24 @@ async function submitSeriesForm(e) {
         if (seriesId && currentSeriesId == seriesId) {
             await loadSeriesDetail(seriesId);
         }
+        
+        console.log('✅ Série salva com sucesso!');
     } catch (error) {
         console.error('Error:', error);
         alert('Erro ao salvar HQ: ' + error.message);
     }
 }
 
-function editSeries(seriesId) {
-    openModal(seriesId);
+async function editSeries(seriesId) {
+    await openModal(seriesId);
 }
 
-function editarSerieAtual() {
+async function editarSerieAtual() {
     if (!currentSeriesId) {
         console.error('Nenhuma série selecionada');
         return;
     }
-    openModal(currentSeriesId);
+    await openModal(currentSeriesId);
 }
 
 async function deleteSeries(seriesId, seriesTitle = 'esta HQ') {
