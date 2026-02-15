@@ -74,6 +74,10 @@ class SeriesDB(Base):
     date_added = Column(String(50), nullable=False)
     date_updated = Column(String(50))
     
+    # ✅ NOVOS CAMPOS PARA SAGAS
+    main_issues = Column(Integer, default=0)
+    tie_in_issues = Column(Integer, default=0)
+    
     # Relacionamento
     issues = relationship("IssueDB", back_populates="series", cascade="all, delete-orphan")
 
@@ -116,6 +120,9 @@ class SeriesCreate(BaseModel):
     series_type: str = 'em_andamento'
     cover_url: Optional[str] = None
     notes: Optional[str] = None
+    # ✅ NOVOS CAMPOS
+    main_issues: int = 0
+    tie_in_issues: int = 0
 
 
 class SeriesUpdate(SeriesCreate):
@@ -137,6 +144,9 @@ class SeriesResponse(BaseModel):
     status: str
     date_added: str
     date_updated: Optional[str]
+    # ✅ NOVOS CAMPOS
+    main_issues: int
+    tie_in_issues: int
     
     class Config:
         from_attributes = True
@@ -282,7 +292,10 @@ def series_to_response(series: SeriesDB, db: Session = None) -> dict:
         "notes": series.notes,
         "status": status,
         "date_added": series.date_added,
-        "date_updated": series.date_updated
+        "date_updated": series.date_updated,
+        # ✅ RETORNAR NOVOS CAMPOS
+        "main_issues": series.main_issues or 0,
+        "tie_in_issues": series.tie_in_issues or 0
     }
 
 
@@ -400,7 +413,7 @@ async def get_series(series_id: int, db: Session = Depends(get_db)):
     except HTTPException:
         raise
     except Exception as e:
-        print(f"Erro ao buscar série: {e}")
+        print(f"Erro ao obter série: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -419,18 +432,17 @@ async def create_series(series: SeriesCreate, db: Session = Depends(get_db)):
             series_type=series.series_type,
             cover_url=series.cover_url,
             notes=series.notes,
-            saga_editions=series.saga_editions,
-            main_issues=series.main_issues or 0,
-            tie_in_issues=series.tie_in_issues or 0,
             date_added=datetime.now().isoformat(),
-            date_updated=datetime.now().isoformat()
+            # ✅ SALVAR NOVOS CAMPOS
+            main_issues=series.main_issues,
+            tie_in_issues=series.tie_in_issues
         )
         
         db.add(db_series)
         db.commit()
         db.refresh(db_series)
         
-        return series_to_response(db_series, db)  # ← PASSAR DB
+        return series_to_response(db_series, db)
         
     except Exception as e:
         db.rollback()
@@ -440,7 +452,7 @@ async def create_series(series: SeriesCreate, db: Session = Depends(get_db)):
 
 @app.put("/series/{series_id}")
 async def update_series(series_id: int, series: SeriesUpdate, db: Session = Depends(get_db)):
-    """Atualizar série"""
+    """Atualizar série existente"""
     try:
         db_series = db.query(SeriesDB).filter(SeriesDB.id == series_id).first()
         
@@ -452,21 +464,25 @@ async def update_series(series_id: int, series: SeriesUpdate, db: Session = Depe
         db_series.author = series.author
         db_series.publisher = series.publisher
         db_series.total_issues = series.total_issues
-        db_series.downloaded_issues = series.downloaded_issues
-        db_series.read_issues = series.read_issues
         db_series.is_completed = series.is_completed
         db_series.series_type = series.series_type
         db_series.cover_url = series.cover_url
         db_series.notes = series.notes
-        db_series.saga_editions = series.saga_editions
+        db_series.date_updated = datetime.now().isoformat()
+        # ✅ ATUALIZAR NOVOS CAMPOS
         db_series.main_issues = series.main_issues
         db_series.tie_in_issues = series.tie_in_issues
-        db_series.date_updated = datetime.now().isoformat()
+        
+        # Se não há issues cadastradas, atualizar contadores também
+        issue_count = db.query(func.count(IssueDB.id)).filter(IssueDB.series_id == series_id).scalar()
+        if issue_count == 0:
+            db_series.downloaded_issues = series.downloaded_issues
+            db_series.read_issues = series.read_issues
         
         db.commit()
         db.refresh(db_series)
         
-        return series_to_response(db_series, db)  # ← PASSAR DB
+        return series_to_response(db_series, db)
         
     except HTTPException:
         raise
