@@ -17,6 +17,9 @@
                 <!-- Primeira linha: Logo e Ações -->
                 <div class="header-top">
                     <div class="header-left">
+                        <button class="btn-hamburger" id="btn-hamburger" onclick="toggleMobileMenu()">
+                            ☰
+                        </button>
                         <button class="btn-back" id="btn-back" onclick="goToHome()" style="display: none;">
                            ⬅️ Voltar
                         </button>
@@ -80,6 +83,62 @@
                 </div>
             </div>
         </header>
+
+        <!-- Menu Lateral Mobile -->
+        <div class="mobile-menu-overlay" id="mobile-menu-overlay" onclick="toggleMobileMenu()"></div>
+        <div class="mobile-menu" id="mobile-menu">
+            <div class="mobile-menu-header">
+                <h3>Menu</h3>
+                <button class="mobile-menu-close" onclick="toggleMobileMenu()">&times;</button>
+            </div>
+            
+            <div class="mobile-menu-content">
+                <!-- Filtros -->
+                <div class="mobile-menu-section">
+                    <h4>Filtros</h4>
+                    <div class="mobile-filters">
+                        <button class="mobile-filter-btn active" data-filter="all" onclick="filterSeriesFromMobile('all', this)">
+                            📚 Todas
+                        </button>
+                        <button class="mobile-filter-btn" data-filter="para_ler" onclick="filterSeriesFromMobile('para_ler', this)">
+                            📖 Para Ler
+                        </button>
+                        <button class="mobile-filter-btn" data-filter="lendo" onclick="filterSeriesFromMobile('lendo', this)">
+                            📗 Lendo
+                        </button>
+                        <button class="mobile-filter-btn" data-filter="concluida" onclick="filterSeriesFromMobile('concluida', this)">
+                            ✅ Concluídas
+                        </button>
+                        <button class="mobile-filter-btn" data-filter="saga" onclick="filterSeriesFromMobile('saga', this)">
+                            🎭 Sagas
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- Stats -->
+                <div class="mobile-menu-section">
+                    <h4>Estatísticas</h4>
+                    <div class="mobile-stats">
+                        <div class="mobile-stat">
+                            <span class="mobile-stat-label">Total</span>
+                            <span class="mobile-stat-value" id="mobile-stat-total">0</span>
+                        </div>
+                        <div class="mobile-stat">
+                            <span class="mobile-stat-label">Para Ler</span>
+                            <span class="mobile-stat-value" id="mobile-stat-para-ler">0</span>
+                        </div>
+                        <div class="mobile-stat">
+                            <span class="mobile-stat-label">Lendo</span>
+                            <span class="mobile-stat-value" id="mobile-stat-lendo">0</span>
+                        </div>
+                        <div class="mobile-stat">
+                            <span class="mobile-stat-label">Concluídas</span>
+                            <span class="mobile-stat-value" id="mobile-stat-concluidas">0</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
 
         <!-- Main Content -->
         <main class="main">

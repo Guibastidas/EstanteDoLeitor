@@ -216,6 +216,9 @@ async function loadStats() {
         document.getElementById('stat-para-ler').textContent = stats.para_ler || 0;
         document.getElementById('stat-lendo').textContent = stats.lendo || 0;
         document.getElementById('stat-concluidas').textContent = stats.concluidas || 0;
+        
+        // Atualizar stats no menu mobile
+        updateMobileStats();
     } catch (error) {
         console.error('Error loading stats:', error);
     }
@@ -1671,4 +1674,72 @@ function closeNotesModal() {
     
     const modal = document.getElementById('notes-modal');
     modal.style.display = 'none';
+}
+
+// ==================== MENU MOBILE ====================
+
+function toggleMobileMenu() {
+    const menu = document.getElementById('mobile-menu');
+    const overlay = document.getElementById('mobile-menu-overlay');
+    
+    menu.classList.toggle('active');
+    overlay.classList.toggle('active');
+    
+    // Prevenir scroll do body quando menu estiver aberto
+    if (menu.classList.contains('active')) {
+        document.body.style.overflow = 'hidden';
+    } else {
+        document.body.style.overflow = '';
+    }
+}
+
+function filterSeriesFromMobile(filter, button) {
+    // Atualizar botões do menu mobile
+    const mobileButtons = document.querySelectorAll('.mobile-filter-btn');
+    mobileButtons.forEach(btn => btn.classList.remove('active'));
+    button.classList.add('active');
+    
+    // Atualizar botões do header desktop
+    const desktopButtons = document.querySelectorAll('.filter-tab-compact');
+    desktopButtons.forEach(btn => {
+        if (btn.dataset.filter === filter) {
+            btn.classList.add('active');
+        } else {
+            btn.classList.remove('active');
+        }
+    });
+    
+    // Fechar menu
+    toggleMobileMenu();
+    
+    // Aplicar filtro
+    currentFilter = filter;
+    currentPage = 1;
+    loadSeries();
+}
+
+// Atualizar stats no menu mobile quando stats principais mudarem
+function updateMobileStats() {
+    const totalEl = document.getElementById('stat-total');
+    const paraLerEl = document.getElementById('stat-para-ler');
+    const lendoEl = document.getElementById('stat-lendo');
+    const concluidasEl = document.getElementById('stat-concluidas');
+    
+    const mobileTotalEl = document.getElementById('mobile-stat-total');
+    const mobileParaLerEl = document.getElementById('mobile-stat-para-ler');
+    const mobileLendoEl = document.getElementById('mobile-stat-lendo');
+    const mobileConcluidasEl = document.getElementById('mobile-stat-concluidas');
+    
+    if (totalEl && mobileTotalEl) {
+        mobileTotalEl.textContent = totalEl.textContent;
+    }
+    if (paraLerEl && mobileParaLerEl) {
+        mobileParaLerEl.textContent = paraLerEl.textContent;
+    }
+    if (lendoEl && mobileLendoEl) {
+        mobileLendoEl.textContent = lendoEl.textContent;
+    }
+    if (concluidasEl && mobileConcluidasEl) {
+        mobileConcluidasEl.textContent = concluidasEl.textContent;
+    }
 }

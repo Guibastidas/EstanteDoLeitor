@@ -4099,3 +4099,189 @@ body.detail-page #filters-section {
     }
 }
 
+/* ============================================
+   MENU HAMBURGUER MOBILE
+   ============================================ */
+
+/* Botão Hamburguer - escondido por padrão */
+.btn-hamburger {
+    display: none;
+    background: transparent;
+    border: none;
+    font-size: 1.75rem;
+    color: #F5FBE6;
+    cursor: pointer;
+    padding: 0.25rem;
+    line-height: 1;
+    transition: var(--transition);
+}
+
+.btn-hamburger:hover {
+    opacity: 0.8;
+}
+
+/* Menu Overlay */
+.mobile-menu-overlay {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 998;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+.mobile-menu-overlay.active {
+    display: block;
+    opacity: 1;
+}
+
+/* Menu Lateral */
+.mobile-menu {
+    position: fixed;
+    top: 0;
+    left: -300px;
+    width: 300px;
+    height: 100vh;
+    background: var(--color-surface);
+    z-index: 999;
+    box-shadow: var(--shadow-lg);
+    transition: left 0.3s ease;
+    overflow-y: auto;
+}
+
+.mobile-menu.active {
+    left: 0;
+}
+
+.mobile-menu-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1.25rem 1.5rem;
+    background: linear-gradient(135deg, #233D4D 0%, #215E61 100%);
+    color: #F5FBE6;
+    border-bottom: 2px solid var(--color-border);
+}
+
+.mobile-menu-header h3 {
+    margin: 0;
+    font-size: 1.25rem;
+    font-weight: 700;
+}
+
+.mobile-menu-close {
+    background: transparent;
+    border: none;
+    font-size: 2rem;
+    color: #F5FBE6;
+    cursor: pointer;
+    line-height: 1;
+    padding: 0;
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: var(--transition);
+}
+
+.mobile-menu-close:hover {
+    opacity: 0.7;
+}
+
+.mobile-menu-content {
+    padding: 1.5rem;
+}
+
+.mobile-menu-section {
+    margin-bottom: 2rem;
+}
+
+.mobile-menu-section h4 {
+    margin: 0 0 1rem 0;
+    font-size: 1rem;
+    color: var(--color-text);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+/* Filtros Mobile */
+.mobile-filters {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.mobile-filter-btn {
+    padding: 0.875rem 1rem;
+    background: var(--color-bg);
+    border: 2px solid var(--color-border);
+    border-radius: var(--radius);
+    font-size: 0.95rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: var(--transition);
+    text-align: left;
+    color: var(--color-text);
+}
+
+.mobile-filter-btn:hover {
+    background: var(--color-surface);
+    transform: translateX(4px);
+}
+
+.mobile-filter-btn.active {
+    background: var(--color-accent);
+    border-color: var(--color-accent);
+    color: white;
+}
+
+/* Stats Mobile */
+.mobile-stats {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1rem;
+}
+
+.mobile-stat {
+    background: var(--color-bg);
+    padding: 1rem;
+    border-radius: var(--radius);
+    border: 2px solid var(--color-border);
+    text-align: center;
+}
+
+.mobile-stat-label {
+    display: block;
+    font-size: 0.75rem;
+    color: var(--color-text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+}
+
+.mobile-stat-value {
+    display: block;
+    font-size: 1.75rem;
+    font-weight: 700;
+    color: var(--color-accent);
+    line-height: 1;
+}
+
+/* Mostrar hamburguer e esconder filtros/stats em mobile */
+@media (max-width: 768px) {
+    .btn-hamburger {
+        display: block;
+    }
+    
+    .header-filters {
+        display: none !important;
+    }
+}
+
