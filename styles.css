@@ -3348,6 +3348,10 @@ body {
     background: var(--color-primary);
 }
 
+.btn-action-detail.btn-warning {
+    background: var(--color-warning);
+}
+
 /* LINHA INFERIOR: Edições (full-width) */
     flex: 1;
     min-height: 0;
@@ -3864,6 +3868,10 @@ body.detail-page #filters-section {
 
 .btn-action-detail.btn-secondary {
     background: var(--color-primary);
+}
+
+.btn-action-detail.btn-warning {
+    background: var(--color-warning);
 }
 
 /* EDIÇÕES INLINE - EMBAIXO DOS DETALHES */
