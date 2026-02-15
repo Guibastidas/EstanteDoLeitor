@@ -919,13 +919,25 @@ async function submitIssueForm(e) {
 async function recalcularEdicoes(event) {
     if (!currentSeriesId || !currentSeries) {
         alert('Erro: Série não identificada');
+        console.error('❌ Série não identificada:', {currentSeriesId, currentSeries});
+        return;
+    }
+    
+    console.log('📊 Dados atuais da série:', currentSeries);
+    console.log('📊 Total issues:', currentSeries.total_issues);
+    console.log('📊 Read issues:', currentSeries.read_issues);
+    
+    if (!currentSeries.total_issues || currentSeries.total_issues === 0) {
+        alert('⚠️ ERRO: Total de edições está ZERO!\n\nVerifique se a série tem o total de edições cadastrado corretamente.');
+        console.error('❌ Total issues é 0!', currentSeries);
         return;
     }
     
     const confirmacao = confirm(
         `⚠️ RECALCULAR EDIÇÕES BASEADO NA PLANILHA\n\n` +
         `Série: ${currentSeries.title}\n` +
-        `Total (planilha): ${currentSeries.total_issues}\n\n` +
+        `Total (planilha): ${currentSeries.total_issues}\n` +
+        `Lidas (planilha): ${currentSeries.read_issues}\n\n` +
         `Isso vai:\n` +
         `• Deletar TODAS as edições atuais\n` +
         `• Criar edições de 1 até ${currentSeries.total_issues}\n` +
@@ -942,14 +954,19 @@ async function recalcularEdicoes(event) {
     button.disabled = true;
     
     try {
+        console.log('🗑️ Deletando edições existentes...');
         // Deletar edições existentes
         const issuesExistentes = await fetchAPI(`/series/${currentSeriesId}/issues`);
+        console.log(`📝 ${issuesExistentes.length} edições encontradas para deletar`);
+        
         for (const issue of issuesExistentes) {
             await fetchAPI(`/series/${currentSeriesId}/issues/${issue.id}`, {
                 method: 'DELETE'
             });
         }
+        console.log('✅ Edições deletadas');
         
+        console.log(`📝 Criando ${currentSeries.total_issues} novas edições...`);
         // Criar novas edições
         for (let i = 1; i <= currentSeries.total_issues; i++) {
             const isLida = i <= currentSeries.read_issues;
@@ -961,13 +978,20 @@ async function recalcularEdicoes(event) {
                     is_read: isLida
                 })
             });
+            
+            if (i % 10 === 0) {
+                console.log(`📝 Criadas ${i}/${currentSeries.total_issues} edições...`);
+            }
         }
+        console.log('✅ Todas edições criadas');
         
-        alert(`✅ ${currentSeries.total_issues} edições recriadas!`);
+        alert(`✅ ${currentSeries.total_issues} edições recriadas com sucesso!`);
         
+        console.log('🔄 Recarregando dados...');
         await loadSeriesDetail(currentSeriesId);
         await loadStats();
         await loadSeries();
+        console.log('✅ Dados recarregados');
         
     } catch (error) {
         console.error('❌ Erro ao recalcular:', error);
@@ -982,12 +1006,26 @@ async function recalcularEdicoes(event) {
 // Sincronizar edições
 async function sincronizarEdicoesAutomaticamente(event) {
     if (!currentSeriesId || !currentSeries) {
-        alert('Erro: Série não identificrada');
+        alert('Erro: Série não identificada');
+        console.error('❌ Série não identificada:', {currentSeriesId, currentSeries});
+        return;
+    }
+    
+    console.log('📊 Dados atuais da série:', currentSeries);
+    console.log('📊 Total issues:', currentSeries.total_issues);
+    console.log('📊 Read issues:', currentSeries.read_issues);
+    
+    if (!currentSeries.total_issues || currentSeries.total_issues === 0) {
+        alert('⚠️ ERRO: Total de edições está ZERO!\n\nVerifique se a série tem o total de edições cadastrado corretamente.');
+        console.error('❌ Total issues é 0!', currentSeries);
         return;
     }
     
     const confirmacao = confirm(
         `🔄 Sincronizar Edições\n\n` +
+        `Série: ${currentSeries.title}\n` +
+        `Total: ${currentSeries.total_issues}\n` +
+        `Lidas: ${currentSeries.read_issues}\n\n` +
         `Criar ${currentSeries.total_issues} edições automaticamente?\n` +
         `• Edições 1 a ${currentSeries.read_issues}: Marcadas como LIDAS\n` +
         `• Edições ${currentSeries.read_issues + 1} a ${currentSeries.total_issues}: Não lidas\n\n` +
@@ -1003,14 +1041,19 @@ async function sincronizarEdicoesAutomaticamente(event) {
     button.disabled = true;
     
     try {
+        console.log('🗑️ Deletando edições existentes...');
         // Deletar existentes
         const issuesExistentes = await fetchAPI(`/series/${currentSeriesId}/issues`);
+        console.log(`📝 ${issuesExistentes.length} edições encontradas para deletar`);
+        
         for (const issue of issuesExistentes) {
             await fetchAPI(`/series/${currentSeriesId}/issues/${issue.id}`, {
                 method: 'DELETE'
             });
         }
+        console.log('✅ Edições deletadas');
         
+        console.log(`📝 Criando ${currentSeries.total_issues} novas edições...`);
         // Criar novas
         for (let i = 1; i <= currentSeries.total_issues; i++) {
             await fetchAPI(`/series/${currentSeriesId}/issues`, {
@@ -1020,13 +1063,20 @@ async function sincronizarEdicoesAutomaticamente(event) {
                     is_read: i <= currentSeries.read_issues
                 })
             });
+            
+            if (i % 10 === 0) {
+                console.log(`📝 Criadas ${i}/${currentSeries.total_issues} edições...`);
+            }
         }
+        console.log('✅ Todas edições criadas');
         
-        alert(`✅ ${currentSeries.total_issues} edições sincronizadas!`);
+        alert(`✅ ${currentSeries.total_issues} edições sincronizadas com sucesso!`);
         
+        console.log('🔄 Recarregando dados...');
         await loadSeriesDetail(currentSeriesId);
         await loadStats();
         await loadSeries();
+        console.log('✅ Dados recarregados');
         
     } catch (error) {
         console.error('❌ Erro:', error);
@@ -1381,22 +1431,37 @@ async function submitSeriesForm(e) {
         tie_in_issues: parseInt(document.getElementById('tie_in_issues').value) || 0,
     };
     
-    // ✅ CORREÇÃO: Quando editar, incluir downloaded_issues e read_issues para não zerar!
+    // ✅ CORREÇÃO: Quando editar, BUSCAR dados atuais do backend para preservar tudo!
     if (seriesId) {
-        const series = allSeries.find(s => s.id === parseInt(seriesId));
-        if (series) {
-            data.downloaded_issues = series.downloaded_issues || 0;
-            data.read_issues = series.read_issues || 0;
+        try {
+            const seriesAtual = await fetchAPI(`/series/${seriesId}`);
+            // Preservar downloaded_issues e read_issues do backend
+            data.downloaded_issues = seriesAtual.downloaded_issues || 0;
+            data.read_issues = seriesAtual.read_issues || 0;
+            console.log('✅ Preservando valores:', {
+                downloaded: data.downloaded_issues,
+                read: data.read_issues
+            });
+        } catch (error) {
+            console.error('Erro ao buscar série atual:', error);
+            // Fallback: tentar usar allSeries
+            const series = allSeries.find(s => s.id === parseInt(seriesId));
+            if (series) {
+                data.downloaded_issues = series.downloaded_issues || 0;
+                data.read_issues = series.read_issues || 0;
+            }
         }
     }
     
     try {
         if (seriesId) {
+            console.log('📤 Enviando UPDATE:', data);
             await fetchAPI(`/series/${seriesId}`, {
                 method: 'PUT',
                 body: JSON.stringify(data),
             });
         } else {
+            console.log('📤 Enviando CREATE:', data);
             await fetchAPI('/series', {
                 method: 'POST',
                 body: JSON.stringify(data),
@@ -1404,8 +1469,13 @@ async function submitSeriesForm(e) {
         }
         
         closeModal();
-        loadSeries();
-        loadStats();
+        await loadSeries();
+        await loadStats();
+        
+        // Se estiver na view de detalhes, recarregar
+        if (seriesId && currentSeriesId == seriesId) {
+            await loadSeriesDetail(seriesId);
+        }
     } catch (error) {
         console.error('Error:', error);
         alert('Erro ao salvar HQ: ' + error.message);
