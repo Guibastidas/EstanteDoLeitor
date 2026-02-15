@@ -755,6 +755,106 @@ async def get_stats(db: Session = Depends(get_db)):
         raise HTTPException(status_code=500, detail=str(e))
 
 
+# ==================== RECALCULAR TUDO ====================
+
+@app.post("/recalculate-all")
+async def recalculate_all(db: Session = Depends(get_db)):
+    """
+    Recalcular contadores de TODAS as séries baseado nas issues cadastradas.
+    
+    Para cada série:
+    - Se HÁ issues cadastradas → atualiza downloaded_issues e read_issues
+    - Se NÃO HÁ issues → mantém valores da planilha (não altera)
+    
+    IMPORTANTE: NUNCA altera main_issues e tie_in_issues (campos de sagas)
+    """
+    try:
+        all_series = db.query(SeriesDB).all()
+        recalculated_count = 0
+        unchanged_count = 0
+        
+        for series in all_series:
+            # Contar issues reais
+            counts = db.query(
+                func.count(IssueDB.id).label('downloaded'),
+                func.sum(func.cast(IssueDB.is_read, Integer)).label('read')
+            ).filter(IssueDB.series_id == series.id).first()
+            
+            downloaded_real = counts.downloaded or 0
+            read_real = counts.read or 0
+            
+            # Se HÁ issues cadastradas, atualizar contadores
+            if downloaded_real > 0:
+                # Atualizar apenas se os valores mudaram
+                if series.downloaded_issues != downloaded_real or series.read_issues != read_real:
+                    series.downloaded_issues = downloaded_real
+                    series.read_issues = read_real
+                    series.date_updated = datetime.now().isoformat()
+                    recalculated_count += 1
+                    
+                    # ✅ IMPORTANTE: Preservar main_issues e tie_in_issues
+                    # Não fazemos nada com esses campos - eles são gerenciados apenas via edição manual
+            else:
+                # Sem issues - manter valores da planilha
+                unchanged_count += 1
+        
+        db.commit()
+        
+        return {
+            "message": "Recálculo concluído com sucesso",
+            "recalculated": recalculated_count,
+            "unchanged": unchanged_count,
+            "total": len(all_series)
+        }
+        
+    except Exception as e:
+        db.rollback()
+        print(f"Erro ao recalcular: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/series/{series_id}/restore-saga-values")
+async def restore_saga_values(
+    series_id: int,
+    saga_data: dict,
+    db: Session = Depends(get_db)
+):
+    """
+    Restaurar valores de main_issues e tie_in_issues para uma saga.
+    
+    Útil se os valores foram zerados acidentalmente.
+    """
+    try:
+        db_series = db.query(SeriesDB).filter(SeriesDB.id == series_id).first()
+        
+        if not db_series:
+            raise HTTPException(status_code=404, detail="Série não encontrada")
+        
+        if db_series.series_type != 'saga':
+            raise HTTPException(status_code=400, detail="Esta série não é uma saga")
+        
+        # Atualizar valores
+        if "main_issues" in saga_data:
+            db_series.main_issues = saga_data["main_issues"]
+        
+        if "tie_in_issues" in saga_data:
+            db_series.tie_in_issues = saga_data["tie_in_issues"]
+        
+        db_series.date_updated = datetime.now().isoformat()
+        
+        db.commit()
+        db.refresh(db_series)
+        
+        return series_to_response(db_series, db)
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        print(f"Erro ao restaurar valores da saga: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 # ==================== MAIN ====================
 
 if __name__ == "__main__":
