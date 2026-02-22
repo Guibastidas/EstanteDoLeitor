@@ -237,11 +237,37 @@
                                     <div id="detail-type-badge"></div>
                                 </div>
                                 
-                                <div class="info-meta">
-                                    <span id="detail-author"></span>
-                                    <span id="detail-publisher"></span>
-                                    <!-- FIX #16: anos -->
-                                    <span id="detail-years" class="detail-year" style="display:none;"></span>
+                                <!-- Meta + Stats na mesma linha -->
+                                <div class="info-meta-stats-row">
+                                    <div class="info-meta">
+                                        <span id="detail-author"></span>
+                                        <span id="detail-publisher"></span>
+                                        <!-- FIX #16: anos -->
+                                        <span id="detail-years" class="detail-year" style="display:none;"></span>
+                                    </div>
+                                    <div class="info-stats-mini">
+                                        <div class="stat-mini-box">
+                                            <span class="stat-icon">📖</span>
+                                            <span class="stat-label">Lendo</span>
+                                            <span class="stat-value" id="detail-reading">0</span>
+                                        </div>
+                                        <div class="stat-mini-box">
+                                            <span class="stat-icon">📥</span>
+                                            <span class="stat-label">Baixadas</span>
+                                            <span class="stat-value" id="detail-downloaded">0</span>
+                                        </div>
+                                        <div class="stat-mini-box">
+                                            <span class="stat-icon">📚</span>
+                                            <span class="stat-label">Total</span>
+                                            <span class="stat-value" id="detail-total">0</span>
+                                        </div>
+                                        <button class="btn-notes-mini" id="btn-view-notes" onclick="openNotesModal()" style="display: none;" title="Ver notas">
+                                            📝
+                                        </button>
+                                        <button class="btn-notes-mini" id="btn-undo" onclick="desfazerUltimaAcao()" title="Desfazer última ação" disabled>
+                                            ↶
+                                        </button>
+                                    </div>
                                 </div>
                                 
                                 <!-- Edições da Saga (só aparece para sagas) -->
@@ -255,30 +281,6 @@
                                     <div class="progress-bar-container">
                                         <div class="progress-bar" id="detail-progress-bar" style="width: 0%"></div>
                                     </div>
-                                </div>
-                                
-                                <div class="info-stats-mini">
-                                    <div class="stat-mini-box">
-                                        <span class="stat-icon">📖</span>
-                                        <span class="stat-label">Lendo</span>
-                                        <span class="stat-value" id="detail-reading">0</span>
-                                    </div>
-                                    <div class="stat-mini-box">
-                                        <span class="stat-icon">📥</span>
-                                        <span class="stat-label">Baixadas</span>
-                                        <span class="stat-value" id="detail-downloaded">0</span>
-                                    </div>
-                                    <div class="stat-mini-box">
-                                        <span class="stat-icon">📚</span>
-                                        <span class="stat-label">Total</span>
-                                        <span class="stat-value" id="detail-total">0</span>
-                                    </div>
-                                    <button class="btn-notes-mini" id="btn-view-notes" onclick="openNotesModal()" style="display: none;" title="Ver notas">
-                                        📝
-                                    </button>
-                                    <button class="btn-notes-mini" id="btn-undo" onclick="desfazerUltimaAcao()" title="Desfazer última ação" disabled>
-                                        ↶
-                                    </button>
                                 </div>
                                 
                                 <div class="info-actions">

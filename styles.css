@@ -3490,12 +3490,24 @@ body.detail-page #filters-section {
     background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);
 }
 
+/* Meta + Stats row container */
+.info-meta-stats-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    flex-wrap: wrap;
+}
+
 .info-meta {
     display: flex;
-    gap: 1.5rem;
+    gap: 1rem;
     flex-wrap: wrap;
     font-size: 0.85rem;
     color: var(--color-text-secondary);
+    align-items: center;
+    flex: 1;
+    min-width: 0;
 }
 
 .info-meta span:not(:empty) {
@@ -3555,12 +3567,13 @@ body.detail-page #filters-section {
     margin-bottom: 0.5rem;
 }
 
-/* STATS MINI - LAYOUT HORIZONTAL (ÍCONE AO LADO) */
+/* STATS MINI - inline with meta row */
 .info-stats-mini {
     display: flex;
-    justify-content: flex-start;
-    gap: 0.5rem;
+    align-items: center;
+    gap: 0.4rem;
     flex-wrap: wrap;
+    flex-shrink: 0;
 }
 
 .stat-mini-box {
@@ -3568,11 +3581,12 @@ body.detail-page #filters-section {
     flex-direction: row;
     align-items: center;
     justify-content: center;
-    gap: 0.35rem;
-    padding: 0.3rem 0.65rem;
+    gap: 0.3rem;
+    padding: 0.28rem 0.55rem;
     background: linear-gradient(135deg, var(--color-primary) 0%, #1a4a4d 100%);
     border-radius: 6px;
     font-size: 0.75rem;
+    white-space: nowrap;
 }
 
 .stat-mini-box .stat-icon {
@@ -3648,11 +3662,11 @@ body.detail-page #filters-section {
     display: flex;
     align-items: center;
     justify-content: center;
-    padding: 0.4rem 0.75rem;
+    padding: 0.3rem 0.5rem;
     background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
     border: none;
-    border-radius: var(--radius);
-    font-size: 1.3rem;
+    border-radius: 6px;
+    font-size: 1rem;
     cursor: pointer;
     transition: all 0.2s ease;
     box-shadow: 0 2px 4px rgba(59, 130, 246, 0.2);
@@ -4607,3 +4621,15 @@ body.dark-mode .skeleton-line {
     }
 }
 
+
+/* ---- info-meta-stats-row responsive ---- */
+@media (max-width: 700px) {
+    .info-meta-stats-row {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.5rem;
+    }
+    .info-stats-mini {
+        width: 100%;
+    }
+}
