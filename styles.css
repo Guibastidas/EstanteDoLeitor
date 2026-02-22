@@ -4285,3 +4285,287 @@ body.detail-page #filters-section {
     }
 }
 
+
+/* ============================================================
+   CORREÇÕES v4.0.0 — FIX #10, #13, #14, #16, #19, #20
+   ============================================================ */
+
+/* ---- FIX #14: DARK MODE ---- */
+body.dark-mode {
+    --color-bg:             #1a1a2e;
+    --color-surface:        #16213e;
+    --color-border:         #0f3460;
+    --color-text:           #e0e0e0;
+    --color-text-secondary: #a0aec0;
+    --color-primary:        #4a9eca;
+    --color-primary-hover:  #357ab8;
+}
+
+body.dark-mode .header {
+    background: linear-gradient(135deg, #0d1b2a 0%, #1a2f4a 100%);
+}
+
+body.dark-mode .comic-card,
+body.dark-mode .comic-info,
+body.dark-mode .stat-card,
+body.dark-mode .modal-content,
+body.dark-mode .detail-view {
+    background: var(--color-surface);
+    color: var(--color-text);
+}
+
+body.dark-mode .filter-tab {
+    background: var(--color-surface);
+    color: var(--color-text-secondary);
+}
+
+body.dark-mode .filter-tab.active {
+    background: var(--color-accent);
+    color: #fff;
+}
+
+body.dark-mode .modal-overlay {
+    background: rgba(0,0,0,0.7);
+}
+
+body.dark-mode input,
+body.dark-mode select,
+body.dark-mode textarea {
+    background: #1a2a3a;
+    color: var(--color-text);
+    border-color: var(--color-border);
+}
+
+body.dark-mode .mobile-menu {
+    background: var(--color-surface);
+    color: var(--color-text);
+}
+
+/* Botão dark mode */
+.btn-dark-mode {
+    background: transparent;
+    border: 1px solid rgba(255,255,255,0.3);
+    color: #F5FBE6;
+    border-radius: var(--radius);
+    padding: 0.4rem 0.6rem;
+    cursor: pointer;
+    font-size: 1rem;
+    transition: var(--transition);
+    line-height: 1;
+}
+
+.btn-dark-mode:hover {
+    background: rgba(255,255,255,0.1);
+}
+
+/* ---- FIX #10: SKELETON LOADER ---- */
+.skeleton-card {
+    pointer-events: none;
+    animation: skeleton-pulse 1.5s ease-in-out infinite;
+}
+
+.skeleton-cover {
+    width: 100%;
+    aspect-ratio: 2/3;
+    max-height: 300px;
+    background: linear-gradient(90deg, #e0e0e0 25%, #f0f0f0 50%, #e0e0e0 75%);
+    background-size: 200% 100%;
+    animation: skeleton-shimmer 1.5s infinite;
+    border-radius: 4px;
+}
+
+body.dark-mode .skeleton-cover {
+    background: linear-gradient(90deg, #1e2a3a 25%, #2a3a4a 50%, #1e2a3a 75%);
+    background-size: 200% 100%;
+}
+
+.skeleton-body {
+    padding: 1rem;
+}
+
+.skeleton-line {
+    height: 14px;
+    background: linear-gradient(90deg, #e0e0e0 25%, #f0f0f0 50%, #e0e0e0 75%);
+    background-size: 200% 100%;
+    animation: skeleton-shimmer 1.5s infinite;
+    border-radius: 4px;
+    margin-bottom: 0.75rem;
+    width: 100%;
+}
+
+.skeleton-line-short { width: 60%; }
+
+body.dark-mode .skeleton-line {
+    background: linear-gradient(90deg, #1e2a3a 25%, #2a3a4a 50%, #1e2a3a 75%);
+    background-size: 200% 100%;
+}
+
+@keyframes skeleton-shimmer {
+    0%   { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
+}
+
+@keyframes skeleton-pulse {
+    0%, 100% { opacity: 1;   }
+    50%       { opacity: 0.7; }
+}
+
+/* ---- FIX #13: CONTROLES DE ORDENAÇÃO ---- */
+.sort-controls {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+}
+
+.sort-controls label {
+    font-size: 0.8rem;
+    color: var(--color-text-secondary);
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.sort-select,
+.publisher-select {
+    padding: 0.4rem 0.75rem;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius);
+    font-size: 0.8rem;
+    background: var(--color-bg);
+    color: var(--color-text);
+    cursor: pointer;
+    transition: var(--transition);
+}
+
+.sort-select:focus,
+.publisher-select:focus {
+    outline: none;
+    border-color: var(--color-accent);
+}
+
+/* ---- FIX #16: ANO NA CARD ---- */
+.comic-year {
+    font-size: 0.72rem;
+    color: var(--color-text-secondary);
+    margin-bottom: 0.25rem;
+    font-weight: 500;
+}
+
+/* ---- FIX #19: PREVIEW DE CAPA ---- */
+.cover-url-preview {
+    margin-top: 0.5rem;
+    display: none;
+}
+
+.cover-url-preview img {
+    max-width: 120px;
+    max-height: 160px;
+    border-radius: var(--radius);
+    border: 2px solid var(--color-border);
+    object-fit: cover;
+}
+
+.cover-url-warning {
+    display: none;
+    font-size: 0.8rem;
+    color: var(--color-danger);
+    margin-top: 0.35rem;
+}
+
+/* ---- FIX #20: FILTRO DE EDITORA ---- */
+.publisher-filter-wrap {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+/* ---- BOTÃO EXPORTAR / IMPORTAR ---- */
+.btn-export,
+.btn-import {
+    padding: 0.5rem 1rem;
+    border-radius: var(--radius);
+    border: 1px solid var(--color-border);
+    background: var(--color-bg);
+    color: var(--color-text-secondary);
+    font-size: 0.8rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: var(--transition);
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+}
+
+.btn-export:hover,
+.btn-import:hover {
+    background: var(--color-surface);
+    color: var(--color-text);
+    border-color: var(--color-accent);
+}
+
+/* ---- MODAL DE IMPORTAÇÃO ---- */
+.import-modal-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.5);
+    z-index: 1000;
+    align-items: center;
+    justify-content: center;
+}
+
+.import-modal-content {
+    background: var(--color-surface);
+    border-radius: 12px;
+    padding: 2rem;
+    max-width: 480px;
+    width: 90%;
+    box-shadow: var(--shadow-lg);
+}
+
+.import-modal-content h3 {
+    margin: 0 0 1rem 0;
+    color: var(--color-text);
+}
+
+.import-modal-content p {
+    font-size: 0.85rem;
+    color: var(--color-text-secondary);
+    margin-bottom: 1rem;
+}
+
+.import-file-input {
+    width: 100%;
+    padding: 0.5rem;
+    border: 2px dashed var(--color-border);
+    border-radius: var(--radius);
+    font-size: 0.875rem;
+    margin-bottom: 1rem;
+    background: var(--color-bg);
+    color: var(--color-text);
+}
+
+.import-modal-actions {
+    display: flex;
+    gap: 0.75rem;
+    justify-content: flex-end;
+}
+
+/* ---- ANOS NO DETALHE ---- */
+.detail-year {
+    font-size: 0.85rem;
+    color: var(--color-text-secondary);
+    margin-bottom: 0.5rem;
+}
+
+/* ---- RESPONSIVIDADE DAS NOVAS CONTROLS ---- */
+@media (max-width: 768px) {
+    .sort-controls {
+        width: 100%;
+    }
+    .sort-select,
+    .publisher-select {
+        flex: 1;
+    }
+}
+

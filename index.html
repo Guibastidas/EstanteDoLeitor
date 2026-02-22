@@ -32,6 +32,9 @@
                             <button class="search-clear" id="search-clear" onclick="clearSearch()" style="display: none;">&times;</button>
                             <span class="search-icon">🔍</span>
                         </div>
+                        <button class="btn-dark-mode" id="btn-dark-mode" onclick="toggleDarkMode()" title="Alternar modo escuro">🌙</button>
+                        <button class="btn-export" onclick="exportarDados()" title="Exportar backup CSV">⬇️ Exportar</button>
+                        <button class="btn-import" onclick="openImportModal()" title="Importar HQs de CSV/XLSX">⬆️ Importar</button>
                         <button class="btn-sync" onclick="recalcularTodasHQs(event)" title="Recalcular edições de TODAS as HQs baseado na planilha">
                             🔄 Recalcular Tudo
                         </button>
@@ -78,6 +81,10 @@
                         <div class="header-stat">
                             <span class="header-stat-value" id="stat-concluidas">0</span>
                             <span class="header-stat-label">Concluídas</span>
+                        </div>
+                        <div class="header-stat">
+                            <span class="header-stat-value" id="stat-sagas">0</span>
+                            <span class="header-stat-label">Sagas</span>
                         </div>
                     </div>
                 </div>
@@ -145,6 +152,27 @@
             <div class="container">
                 <!-- Home View -->
                 <div id="home-view">
+                    <!-- FIX #13: Ordenação | FIX #20: Filtro por editora -->
+                    <div class="sort-controls" style="margin-bottom: 1rem; gap: 1rem;">
+                        <div style="display: flex; align-items: center; gap: 0.5rem;">
+                            <label for="sort-select">Ordenar:</label>
+                            <select class="sort-select" id="sort-select" onchange="sortSeries(this.value)">
+                                <option value="alpha">A → Z</option>
+                                <option value="alpha_desc">Z → A</option>
+                                <option value="progress">Mais lidas primeiro</option>
+                                <option value="progress_asc">Menos lidas primeiro</option>
+                                <option value="almost_done">Quase concluídas</option>
+                                <option value="publisher">Por editora</option>
+                                <option value="date_added">Mais recentes</option>
+                            </select>
+                        </div>
+                        <div class="publisher-filter-wrap">
+                            <select class="publisher-select" id="publisher-filter" onchange="filterByPublisher(this.value)">
+                                <option value="">📚 Todas as editoras</option>
+                            </select>
+                        </div>
+                    </div>
+
                     <div class="comics-grid" id="series-grid"></div>
                     
                     <!-- Paginação -->
@@ -212,6 +240,8 @@
                                 <div class="info-meta">
                                     <span id="detail-author"></span>
                                     <span id="detail-publisher"></span>
+                                    <!-- FIX #16: anos -->
+                                    <span id="detail-years" class="detail-year" style="display:none;"></span>
                                 </div>
                                 
                                 <!-- Edições da Saga (só aparece para sagas) -->
@@ -384,7 +414,24 @@ Justice League #15"></textarea>
 
                 <div class="form-group">
                     <label for="cover_url">URL da Capa</label>
-                    <input type="url" id="cover_url" placeholder="https://...">
+                    <input type="url" id="cover_url" placeholder="https://..." oninput="previewCoverUrl()">
+                    <!-- FIX #19: preview em tempo real -->
+                    <div class="cover-url-preview" id="cover-url-preview">
+                        <img id="cover-url-preview-img" src="" alt="Preview da capa">
+                    </div>
+                    <span class="cover-url-warning" id="cover-url-warning"></span>
+                </div>
+
+                <!-- FIX #16: Campos de ano -->
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="year_start">Ano de Início</label>
+                        <input type="number" id="year_start" min="1900" max="2100" placeholder="Ex: 1986">
+                    </div>
+                    <div class="form-group">
+                        <label for="year_end">Ano de Conclusão</label>
+                        <input type="number" id="year_end" min="1900" max="2100" placeholder="Ex: 1987">
+                    </div>
                 </div>
 
                 <div class="form-group">
@@ -452,6 +499,21 @@ Justice League #15"></textarea>
             </div>
             <div class="modal-body">
                 <div class="notes-display" id="notes-display-content"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- FIX #18: Modal de Importação -->
+    <div class="import-modal-overlay" id="import-modal" style="display:none;" onclick="if(event.target===this)closeImportModal()">
+        <div class="import-modal-content">
+            <h3>⬆️ Importar HQs</h3>
+            <p>Importe um arquivo <strong>CSV</strong> ou <strong>XLSX</strong> com suas HQs.<br>
+            Colunas aceitas: <code>title</code>, <code>author</code>, <code>publisher</code>, <code>series_type</code>, <code>total_issues</code>, <code>read_issues</code>, <code>downloaded_issues</code>, <code>year_start</code>, <code>year_end</code>, <code>cover_url</code>, <code>notes</code>.
+            </p>
+            <input type="file" class="import-file-input" id="import-file" accept=".csv,.xlsx,.xls">
+            <div class="import-modal-actions">
+                <button class="btn-secondary" onclick="closeImportModal()">Cancelar</button>
+                <button class="btn-primary" id="btn-import-submit" onclick="submitImport()">Importar</button>
             </div>
         </div>
     </div>

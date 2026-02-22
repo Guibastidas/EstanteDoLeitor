@@ -1,18 +1,22 @@
 """
-HQ Manager - Backend FastAPI com PostgreSQL
-Sistema de gerenciamento de HQs com tabelas SERIES e ISSUES
+HQ Manager - Backend FastAPI
+v4.0.0 - Todas as 22 correções aplicadas
 """
 
 import os
+import io
+import csv
+import json
 from datetime import datetime
 from typing import List, Optional
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, HTTPException, Query, Depends
+from fastapi import FastAPI, HTTPException, Query, Depends, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, Response
+from fastapi.responses import FileResponse, Response, StreamingResponse
 from pydantic import BaseModel
-from sqlalchemy import create_engine, Column, Integer, String, Boolean, Text, ForeignKey, func
+# FIX #5: importar text para migrations + case para queries eficientes
+from sqlalchemy import create_engine, Column, Integer, String, Boolean, Text, ForeignKey, func, case, text
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, Session, relationship
 
@@ -28,7 +32,7 @@ else:
     if DATABASE_URL.startswith("postgres://"):
         DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
     print(f"✅ Conectando ao PostgreSQL (Railway)")
-    print(f"📊 Database URL: {DATABASE_URL[:20]}...")  # Mostrar apenas início
+    print(f"📊 Database URL: {DATABASE_URL[:20]}...")
     connect_args = {
         "connect_timeout": 10,
         "options": "-c timezone=utc"
@@ -42,13 +46,10 @@ try:
         connect_args=connect_args,
         echo=False
     )
-    # Testar conexão
     with engine.connect() as conn:
         print("✅ Conexão com banco estabelecida com sucesso!")
 except Exception as e:
     print(f"❌ ERRO ao conectar ao banco: {e}")
-    print(f"🔍 Verifique se DATABASE_URL está configurada corretamente")
-    print(f"🔍 Verifique se o PostgreSQL está rodando e acessível")
     raise
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
@@ -57,9 +58,7 @@ Base = declarative_base()
 # ==================== MODELOS DO BANCO ====================
 
 class SeriesDB(Base):
-    """Modelo de Série de HQ no banco de dados"""
     __tablename__ = "series"
-    
     id = Column(Integer, primary_key=True, index=True)
     title = Column(String(500), nullable=False, index=True)
     author = Column(String(200))
@@ -71,21 +70,21 @@ class SeriesDB(Base):
     series_type = Column(String(50), default='em_andamento')
     cover_url = Column(Text)
     notes = Column(Text)
+    # FIX #5: mantido como String para compatibilidade com dados existentes
     date_added = Column(String(50), nullable=False)
     date_updated = Column(String(50))
-    
-    # ✅ NOVOS CAMPOS PARA SAGAS
+    # FIX #4: campo saga_editions adicionado (migration automática no startup)
+    saga_editions = Column(Text)
     main_issues = Column(Integer, default=0)
     tie_in_issues = Column(Integer, default=0)
-    
-    # Relacionamento
+    # FIX #16: campos de ano (migration automática no startup)
+    year_start = Column(Integer)
+    year_end = Column(Integer)
     issues = relationship("IssueDB", back_populates="series", cascade="all, delete-orphan")
 
 
 class IssueDB(Base):
-    """Modelo de Edição de HQ no banco de dados"""
     __tablename__ = "issues"
-    
     id = Column(Integer, primary_key=True, index=True)
     series_id = Column(Integer, ForeignKey("series.id", ondelete="CASCADE"), nullable=False)
     issue_number = Column(Integer, nullable=False)
@@ -94,20 +93,45 @@ class IssueDB(Base):
     is_downloaded = Column(Boolean, default=True)
     date_added = Column(String(50), nullable=False)
     date_read = Column(String(50))
-    
-    # Relacionamento
     series = relationship("SeriesDB", back_populates="issues")
 
 
-# CRIAR TABELAS AUTOMATICAMENTE
-print("📝 Verificando se tabelas existem...")
+# ==================== MIGRATIONS AUTOMÁTICAS ====================
+
+def run_migrations():
+    """
+    FIX #4 + #16: Adiciona colunas novas a tabelas existentes sem derrubar dados.
+    Funciona tanto no SQLite (dev) quanto no PostgreSQL (Railway).
+    """
+    is_sqlite = DATABASE_URL.startswith("sqlite")
+    migrations = [
+        ("series", "saga_editions", "TEXT"),
+        ("series", "year_start",    "INTEGER"),
+        ("series", "year_end",      "INTEGER"),
+    ]
+    with engine.connect() as conn:
+        for table, column, col_type in migrations:
+            try:
+                if is_sqlite:
+                    conn.execute(text(f"ALTER TABLE {table} ADD COLUMN {column} {col_type}"))
+                else:
+                    conn.execute(text(f"ALTER TABLE {table} ADD COLUMN IF NOT EXISTS {column} {col_type}"))
+                conn.commit()
+                print(f"✅ Migration: coluna '{column}' adicionada à tabela '{table}'")
+            except Exception:
+                pass  # coluna já existe — normal
+
+
+print("📝 Verificando tabelas...")
 try:
     Base.metadata.create_all(bind=engine)
-    print("✅ Tabelas criadas/verificadas com sucesso!")
+    run_migrations()
+    print("✅ Tabelas e migrations OK!")
 except Exception as e:
-    print(f"⚠️ Erro ao criar tabelas: {e}")
+    print(f"⚠️ Erro nas migrations: {e}")
 
-# ==================== MODELOS PYDANTIC (API) ====================
+
+# ==================== MODELOS PYDANTIC ====================
 
 class SeriesCreate(BaseModel):
     title: str
@@ -120,9 +144,13 @@ class SeriesCreate(BaseModel):
     series_type: str = 'em_andamento'
     cover_url: Optional[str] = None
     notes: Optional[str] = None
-    # ✅ NOVOS CAMPOS
+    # FIX #4
+    saga_editions: Optional[str] = None
     main_issues: int = 0
     tie_in_issues: int = 0
+    # FIX #16
+    year_start: Optional[int] = None
+    year_end: Optional[int] = None
 
 
 class SeriesUpdate(SeriesCreate):
@@ -141,13 +169,15 @@ class SeriesResponse(BaseModel):
     series_type: str
     cover_url: Optional[str]
     notes: Optional[str]
+    saga_editions: Optional[str]  # FIX #4
     status: str
     date_added: str
     date_updated: Optional[str]
-    # ✅ NOVOS CAMPOS
     main_issues: int
     tie_in_issues: int
-    
+    year_start: Optional[int]   # FIX #16
+    year_end: Optional[int]     # FIX #16
+
     class Config:
         from_attributes = True
 
@@ -162,6 +192,18 @@ class IssueUpdate(BaseModel):
     is_read: bool
 
 
+# FIX #2: modelo para bulk update de leitura
+class BulkReadUpdate(BaseModel):
+    is_read: bool
+
+
+# FIX #1: modelo para criação em lote de edições
+class BulkIssueCreate(BaseModel):
+    total_issues: int
+    read_issues: int = 0
+    replace_existing: bool = True
+
+
 class IssueResponse(BaseModel):
     id: int
     series_id: int
@@ -171,51 +213,46 @@ class IssueResponse(BaseModel):
     is_downloaded: bool
     date_added: str
     date_read: Optional[str]
-    
+
     class Config:
         from_attributes = True
-
-
-class Stats(BaseModel):
-    total: int
-    para_ler: int
-    lendo: int
-    concluida: int
 
 
 # ==================== LIFECYCLE ====================
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Gerenciar inicialização e finalização do app"""
-    print("🚀 Iniciando HQ Manager...")
+    print("🚀 Iniciando HQ Manager v4.0.0...")
     Base.metadata.create_all(bind=engine)
+    run_migrations()
     print("✅ Banco pronto!")
     yield
     print("👋 Encerrando HQ Manager...")
 
 
-# ==================== APLICAÇÃO FASTAPI ====================
+# ==================== APLICAÇÃO ====================
 
 app = FastAPI(
     title="HQ Manager API",
     description="API para gerenciamento de HQs",
-    version="3.0.0",
+    version="4.0.0",
     lifespan=lifespan
 )
 
+# FIX #6: CORS corrigido — allow_credentials=False quando allow_origins=["*"]
+# A combinação credentials=True + origins=["*"] viola a spec do CORS
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
-    allow_credentials=True,
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
+
 # ==================== DEPENDENCY ====================
 
 def get_db():
-    """Dependency para obter sessão do banco"""
     db = SessionLocal()
     try:
         yield db
@@ -226,7 +263,6 @@ def get_db():
 # ==================== FUNÇÕES AUXILIARES ====================
 
 def calculate_status(read_issues: int, total_issues: int) -> str:
-    """Calcular status baseado no progresso"""
     if read_issues == 0:
         return "para_ler"
     elif read_issues >= total_issues and total_issues > 0:
@@ -235,165 +271,164 @@ def calculate_status(read_issues: int, total_issues: int) -> str:
         return "lendo"
 
 
-def series_to_response(series: SeriesDB, db: Session = None) -> dict:
-    """Converter SeriesDB para resposta da API
-    
-    ABORDAGEM HÍBRIDA:
-    - Se há issues cadastradas: usa valores calculados (baseado nas issues)
-    - Se NÃO há issues: usa valores do banco (da planilha importada)
-    
-    Isso permite:
-    1. Mostrar valores da planilha antes de cadastrar issues
-    2. Calcular automaticamente quando issues são cadastradas
-    3. Manter integridade dos dados
+def series_to_response(series: SeriesDB, dl: int = None, rd: int = None) -> dict:
     """
-    # Se db foi fornecido, verificar se há issues cadastradas
-    if db:
-        from sqlalchemy import func
-        
-        # Contar issues reais
-        counts = db.query(
-            func.count(IssueDB.id).label('downloaded'),
-            func.sum(func.cast(IssueDB.is_read, Integer)).label('read')
-        ).filter(IssueDB.series_id == series.id).first()
-        
-        downloaded_real = counts.downloaded or 0
-        read_real = counts.read or 0
-        
-        # ABORDAGEM HÍBRIDA:
-        # Se HÁ issues cadastradas, usar valores calculados
-        # Se NÃO HÁ issues, usar valores do banco (planilha)
-        if downloaded_real > 0:
-            # Há issues cadastradas - usar valores calculados
-            read_issues = read_real
-            downloaded_issues = downloaded_real
-        else:
-            # Não há issues - usar valores do banco (planilha)
-            read_issues = series.read_issues
-            downloaded_issues = series.downloaded_issues
+    FIX #22: aceita contadores pré-calculados para evitar N+1.
+    Abordagem híbrida:
+    - Se HÁ issues cadastradas (dl > 0): usa valores calculados das issues
+    - Se NÃO HÁ issues (dl == 0): usa valores do banco (importados da planilha)
+    """
+    if dl is not None:
+        downloaded_issues = dl if dl > 0 else series.downloaded_issues
+        read_issues       = rd if dl > 0 else series.read_issues
     else:
-        # Sem db, usar valores do banco
-        read_issues = series.read_issues
         downloaded_issues = series.downloaded_issues
-    
-    status = calculate_status(read_issues, series.total_issues)
-    
+        read_issues       = series.read_issues
+
     return {
-        "id": series.id,
-        "title": series.title,
-        "author": series.author,
-        "publisher": series.publisher,
-        "total_issues": series.total_issues,
+        "id":               series.id,
+        "title":            series.title,
+        "author":           series.author,
+        "publisher":        series.publisher,
+        "total_issues":     series.total_issues,
         "downloaded_issues": downloaded_issues,
-        "read_issues": read_issues,
-        "is_completed": series.is_completed,
-        "series_type": series.series_type,
-        "cover_url": series.cover_url,
-        "notes": series.notes,
-        "status": status,
-        "date_added": series.date_added,
-        "date_updated": series.date_updated,
-        # ✅ RETORNAR NOVOS CAMPOS
-        "main_issues": series.main_issues or 0,
-        "tie_in_issues": series.tie_in_issues or 0
+        "read_issues":      read_issues,
+        "is_completed":     series.is_completed,
+        "series_type":      series.series_type,
+        "cover_url":        series.cover_url,
+        "notes":            series.notes,
+        "saga_editions":    series.saga_editions,   # FIX #4
+        "status":           calculate_status(read_issues, series.total_issues),
+        "date_added":       series.date_added,
+        "date_updated":     series.date_updated,
+        "main_issues":      series.main_issues  or 0,
+        "tie_in_issues":    series.tie_in_issues or 0,
+        "year_start":       series.year_start,      # FIX #16
+        "year_end":         series.year_end,        # FIX #16
     }
+
+
+def get_issue_counts(db: Session, series_ids: list) -> dict:
+    """
+    FIX #22: carrega contadores de TODAS as séries em UMA única query.
+    Retorna dict {series_id: (downloaded, read)}
+    """
+    if not series_ids:
+        return {}
+    rows = db.query(
+        IssueDB.series_id,
+        func.count(IssueDB.id).label('dl'),
+        func.sum(func.cast(IssueDB.is_read, Integer)).label('rd')
+    ).filter(IssueDB.series_id.in_(series_ids)).group_by(IssueDB.series_id).all()
+    return {r.series_id: (r.dl or 0, r.rd or 0) for r in rows}
 
 
 # ==================== SERVIR ARQUIVOS ESTÁTICOS ====================
 
 @app.get("/styles.css")
 async def get_styles():
-    """Servir arquivo CSS"""
     try:
         with open("styles.css", "r", encoding="utf-8") as f:
-            content = f.read()
-        return Response(content=content, media_type="text/css")
+            return Response(content=f.read(), media_type="text/css")
     except FileNotFoundError:
         raise HTTPException(status_code=404, detail="CSS not found")
 
 
 @app.get("/script.js")
 async def get_script():
-    """Servir arquivo JavaScript principal"""
     try:
         with open("script.js", "r", encoding="utf-8") as f:
-            content = f.read()
-        return Response(content=content, media_type="application/javascript")
+            return Response(content=f.read(), media_type="application/javascript")
     except FileNotFoundError:
         raise HTTPException(status_code=404, detail="JS not found")
 
 
 @app.get("/script-extensions.js")
 async def get_script_extensions():
-    """Servir arquivo JavaScript de extensões"""
     try:
         with open("script-extensions.js", "r", encoding="utf-8") as f:
-            content = f.read()
-        return Response(content=content, media_type="application/javascript")
+            return Response(content=f.read(), media_type="application/javascript")
     except FileNotFoundError:
         raise HTTPException(status_code=404, detail="JS extensions not found")
 
 
-# ==================== ENDPOINTS ====================
+# ==================== ENDPOINTS BASE ====================
 
 @app.get("/")
 async def root():
-    """Servir página inicial"""
     return FileResponse("index.html")
 
 
 @app.get("/api")
 async def api_root():
-    """Endpoint de informação da API"""
-    return {
-        "message": "HQ Manager API",
-        "version": "3.0.0",
-        "status": "online"
-    }
+    return {"message": "HQ Manager API", "version": "4.0.0", "status": "online"}
 
 
 @app.get("/health")
 async def health_check():
-    """Health check para Railway"""
     return {"status": "healthy"}
 
 
-# ==================== ENDPOINTS DE SÉRIES ====================
+# ==================== SÉRIES ====================
 
 @app.get("/series")
 async def list_series(
     search: Optional[str] = Query(None),
     status: Optional[str] = Query(None),
+    page: int = Query(1, ge=1),
+    per_page: int = Query(1000, ge=1, le=1000),
     db: Session = Depends(get_db)
 ):
-    """Listar todas as séries com filtros opcionais"""
+    """
+    FIX #22: busca contadores de issues em UMA query batch — elimina N+1.
+    FIX #7: suporte real ao filtro de status.
+    """
     try:
         query = db.query(SeriesDB)
-        
-        # Filtro de busca
         if search:
-            search_pattern = f"%{search}%"
+            pattern = f"%{search}%"
             query = query.filter(
-                (SeriesDB.title.ilike(search_pattern)) |
-                (SeriesDB.author.ilike(search_pattern)) |
-                (SeriesDB.publisher.ilike(search_pattern))
+                (SeriesDB.title.ilike(pattern)) |
+                (SeriesDB.author.ilike(pattern)) |
+                (SeriesDB.publisher.ilike(pattern))
             )
-        
         series_list = query.order_by(SeriesDB.title).all()
-        
-        # Converter para resposta
+
+        # FIX #22: UMA query para todos os contadores
+        counts = get_issue_counts(db, [s.id for s in series_list])
+
         result = []
-        for series in series_list:
-            series_dict = series_to_response(series, db)  # ← PASSAR DB para recalcular
-            
-            # Filtro de status (após cálculo)
-            if status and series_dict["status"] != status:
+        for s in series_list:
+            dl, rd = counts.get(s.id, (0, 0))
+            d = series_to_response(s, dl=dl, rd=rd)
+            if status and d["status"] != status:
                 continue
-                
-            result.append(series_dict)
-        
-        return result
-        
+            result.append(d)
+
+        total_items = len(result)
+        # Para busca com texto, paginar no servidor
+        if search:
+            start = (page - 1) * per_page
+            paginated = result[start:start + per_page]
+            return {
+                "items": paginated,
+                "pagination": {
+                    "page": page,
+                    "per_page": per_page,
+                    "total_items": total_items,
+                    "total_pages": max(1, -(-total_items // per_page))
+                }
+            }
+        # Sem busca: retorna tudo (paginação local no frontend)
+        return {
+            "items": result,
+            "pagination": {
+                "page": 1,
+                "per_page": total_items,
+                "total_items": total_items,
+                "total_pages": 1
+            }
+        }
     except Exception as e:
         print(f"Erro ao listar séries: {e}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -401,25 +436,21 @@ async def list_series(
 
 @app.get("/series/{series_id}")
 async def get_series(series_id: int, db: Session = Depends(get_db)):
-    """Obter uma série específica"""
     try:
         series = db.query(SeriesDB).filter(SeriesDB.id == series_id).first()
-        
         if not series:
             raise HTTPException(status_code=404, detail="Série não encontrada")
-        
-        return series_to_response(series, db)  # ← PASSAR DB para recalcular
-        
+        counts = get_issue_counts(db, [series_id])
+        dl, rd = counts.get(series_id, (0, 0))
+        return series_to_response(series, dl=dl, rd=rd)
     except HTTPException:
         raise
     except Exception as e:
-        print(f"Erro ao obter série: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
 @app.post("/series")
 async def create_series(series: SeriesCreate, db: Session = Depends(get_db)):
-    """Criar nova série"""
     try:
         db_series = SeriesDB(
             title=series.title,
@@ -432,299 +463,272 @@ async def create_series(series: SeriesCreate, db: Session = Depends(get_db)):
             series_type=series.series_type,
             cover_url=series.cover_url,
             notes=series.notes,
+            saga_editions=series.saga_editions,
             date_added=datetime.now().isoformat(),
-            # ✅ SALVAR NOVOS CAMPOS
             main_issues=series.main_issues,
-            tie_in_issues=series.tie_in_issues
+            tie_in_issues=series.tie_in_issues,
+            year_start=series.year_start,
+            year_end=series.year_end,
         )
-        
         db.add(db_series)
         db.commit()
         db.refresh(db_series)
-        
-        return series_to_response(db_series, db)
-        
+        return series_to_response(db_series)
     except Exception as e:
         db.rollback()
-        print(f"Erro ao criar série: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
 @app.put("/series/{series_id}")
 async def update_series(series_id: int, series: SeriesUpdate, db: Session = Depends(get_db)):
-    """Atualizar série existente"""
     try:
-        db_series = db.query(SeriesDB).filter(SeriesDB.id == series_id).first()
-        
-        if not db_series:
+        db_s = db.query(SeriesDB).filter(SeriesDB.id == series_id).first()
+        if not db_s:
             raise HTTPException(status_code=404, detail="Série não encontrada")
-        
-        # Atualizar campos
-        db_series.title = series.title
-        db_series.author = series.author
-        db_series.publisher = series.publisher
-        db_series.total_issues = series.total_issues
-        db_series.is_completed = series.is_completed
-        db_series.series_type = series.series_type
-        db_series.cover_url = series.cover_url
-        db_series.notes = series.notes
-        db_series.date_updated = datetime.now().isoformat()
-        # ✅ ATUALIZAR NOVOS CAMPOS
-        db_series.main_issues = series.main_issues
-        db_series.tie_in_issues = series.tie_in_issues
-        
-        # Se não há issues cadastradas, atualizar contadores também
+
+        db_s.title         = series.title
+        db_s.author        = series.author
+        db_s.publisher     = series.publisher
+        db_s.total_issues  = series.total_issues
+        db_s.is_completed  = series.is_completed
+        db_s.series_type   = series.series_type
+        db_s.cover_url     = series.cover_url
+        db_s.notes         = series.notes
+        db_s.saga_editions = series.saga_editions
+        db_s.date_updated  = datetime.now().isoformat()
+        db_s.main_issues   = series.main_issues
+        db_s.tie_in_issues = series.tie_in_issues
+        db_s.year_start    = series.year_start
+        db_s.year_end      = series.year_end
+
         issue_count = db.query(func.count(IssueDB.id)).filter(IssueDB.series_id == series_id).scalar()
         if issue_count == 0:
-            db_series.downloaded_issues = series.downloaded_issues
-            db_series.read_issues = series.read_issues
-        
+            db_s.downloaded_issues = series.downloaded_issues
+            db_s.read_issues       = series.read_issues
+
         db.commit()
-        db.refresh(db_series)
-        
-        return series_to_response(db_series, db)
-        
+        db.refresh(db_s)
+        counts = get_issue_counts(db, [series_id])
+        dl, rd = counts.get(series_id, (0, 0))
+        return series_to_response(db_s, dl=dl, rd=rd)
     except HTTPException:
         raise
     except Exception as e:
         db.rollback()
-        print(f"Erro ao atualizar série: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
 @app.delete("/series/{series_id}")
 async def delete_series(series_id: int, db: Session = Depends(get_db)):
-    """Deletar série"""
     try:
-        db_series = db.query(SeriesDB).filter(SeriesDB.id == series_id).first()
-        
-        if not db_series:
+        db_s = db.query(SeriesDB).filter(SeriesDB.id == series_id).first()
+        if not db_s:
             raise HTTPException(status_code=404, detail="Série não encontrada")
-        
-        db.delete(db_series)
+        db.delete(db_s)
         db.commit()
-        
         return {"message": "Série deletada com sucesso"}
-        
     except HTTPException:
         raise
     except Exception as e:
         db.rollback()
-        print(f"Erro ao deletar série: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
-# ==================== ENDPOINTS DE EDIÇÕES ====================
+# ==================== EDIÇÕES ====================
 
 @app.get("/series/{series_id}/issues")
 async def list_issues(series_id: int, db: Session = Depends(get_db)):
-    """Listar edições de uma série"""
     try:
-        issues = db.query(IssueDB).filter(IssueDB.series_id == series_id).order_by(IssueDB.issue_number).all()
-        
+        issues = db.query(IssueDB).filter(
+            IssueDB.series_id == series_id
+        ).order_by(IssueDB.issue_number).all()
         return [
             {
-                "id": issue.id,
-                "series_id": issue.series_id,
-                "issue_number": issue.issue_number,
-                "title": issue.title,
-                "is_read": issue.is_read,
-                "is_downloaded": issue.is_downloaded,
-                "date_added": issue.date_added,
-                "date_read": issue.date_read
-            }
-            for issue in issues
+                "id": i.id, "series_id": i.series_id,
+                "issue_number": i.issue_number, "title": i.title,
+                "is_read": i.is_read, "is_downloaded": i.is_downloaded,
+                "date_added": i.date_added, "date_read": i.date_read
+            } for i in issues
         ]
-        
     except Exception as e:
-        print(f"Erro ao listar edições: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
 @app.post("/series/{series_id}/issues")
 async def create_issue(series_id: int, issue: IssueCreate, db: Session = Depends(get_db)):
-    """Adicionar edição a uma série"""
     try:
-        # Verificar se série existe
         series = db.query(SeriesDB).filter(SeriesDB.id == series_id).first()
         if not series:
             raise HTTPException(status_code=404, detail="Série não encontrada")
-        
-        # Criar edição
+        now = datetime.now().isoformat()
         db_issue = IssueDB(
             series_id=series_id,
             issue_number=issue.issue_number,
             title=issue.title,
             is_read=issue.is_read,
             is_downloaded=True,
-            date_added=datetime.now().isoformat(),
-            date_read=datetime.now().isoformat() if issue.is_read else None
+            date_added=now,
+            date_read=now if issue.is_read else None
         )
-        
         db.add(db_issue)
-        
-        # ✅ CORREÇÃO: NÃO atualizar contadores aqui
-        # O backend híbrido calcula automaticamente baseado nas issues
-        
         db.commit()
         db.refresh(db_issue)
-        
         return {
-            "id": db_issue.id,
-            "series_id": db_issue.series_id,
-            "issue_number": db_issue.issue_number,
-            "title": db_issue.title,
-            "is_read": db_issue.is_read,
-            "is_downloaded": db_issue.is_downloaded,
-            "date_added": db_issue.date_added,
-            "date_read": db_issue.date_read
+            "id": db_issue.id, "series_id": db_issue.series_id,
+            "issue_number": db_issue.issue_number, "title": db_issue.title,
+            "is_read": db_issue.is_read, "is_downloaded": db_issue.is_downloaded,
+            "date_added": db_issue.date_added, "date_read": db_issue.date_read
         }
-        
     except HTTPException:
         raise
     except Exception as e:
         db.rollback()
-        print(f"Erro ao criar edição: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# FIX #1: endpoint bulk que substitui os N loops do frontend
+@app.post("/series/{series_id}/issues/bulk")
+async def bulk_sync_issues(series_id: int, data: BulkIssueCreate, db: Session = Depends(get_db)):
+    """
+    Cria/recria TODAS as edições de uma série em UMA operação de banco.
+    Substitui os loops de 80-160 requisições individuais.
+    """
+    try:
+        series = db.query(SeriesDB).filter(SeriesDB.id == series_id).first()
+        if not series:
+            raise HTTPException(status_code=404, detail="Série não encontrada")
+
+        if data.replace_existing:
+            db.query(IssueDB).filter(IssueDB.series_id == series_id).delete()
+
+        now = datetime.now().isoformat()
+        new_issues = [
+            IssueDB(
+                series_id=series_id,
+                issue_number=i,
+                is_read=(i <= data.read_issues),
+                is_downloaded=True,
+                date_added=now,
+                date_read=now if i <= data.read_issues else None
+            )
+            for i in range(1, data.total_issues + 1)
+        ]
+        db.bulk_save_objects(new_issues)
+        db.commit()
+        return {
+            "message": f"{data.total_issues} edições sincronizadas",
+            "total": data.total_issues,
+            "read": data.read_issues
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# FIX #2: bulk update de status de leitura — uma query no lugar de N PATCH
+@app.patch("/series/{series_id}/issues/bulk-read")
+async def bulk_update_read(series_id: int, data: BulkReadUpdate, db: Session = Depends(get_db)):
+    """Marca TODAS as edições como lidas/não lidas em uma única query."""
+    try:
+        now = datetime.now().isoformat() if data.is_read else None
+        db.query(IssueDB).filter(IssueDB.series_id == series_id).update(
+            {"is_read": data.is_read, "date_read": now},
+            synchronize_session=False
+        )
+        db.commit()
+        return {"message": "Edições atualizadas", "is_read": data.is_read}
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# FIX #2: deletar TODAS as edições em uma query (substituindo loop de DELETE)
+@app.delete("/series/{series_id}/issues")
+async def delete_all_issues(series_id: int, db: Session = Depends(get_db)):
+    """Deleta todas as edições de uma série em uma única query."""
+    try:
+        series = db.query(SeriesDB).filter(SeriesDB.id == series_id).first()
+        if not series:
+            raise HTTPException(status_code=404, detail="Série não encontrada")
+        deleted = db.query(IssueDB).filter(IssueDB.series_id == series_id).delete()
+        db.commit()
+        return {"message": f"{deleted} edições deletadas"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
         raise HTTPException(status_code=500, detail=str(e))
 
 
 @app.put("/issues/{issue_id}")
 async def update_issue(issue_id: int, issue_update: IssueUpdate, db: Session = Depends(get_db)):
-    """Atualizar edição (marcar como lida/não lida)"""
     try:
         db_issue = db.query(IssueDB).filter(IssueDB.id == issue_id).first()
-        
         if not db_issue:
             raise HTTPException(status_code=404, detail="Edição não encontrada")
-        
-        # Atualizar status de leitura
-        db_issue.is_read = issue_update.is_read
-        
-        if issue_update.is_read:
-            db_issue.date_read = datetime.now().isoformat()
-        else:
-            db_issue.date_read = None
-        
-        # ✅ CORREÇÃO: NÃO atualizar contadores aqui
-        # O backend híbrido calcula automaticamente
-        
+        db_issue.is_read  = issue_update.is_read
+        db_issue.date_read = datetime.now().isoformat() if issue_update.is_read else None
         db.commit()
         db.refresh(db_issue)
-        
         return {
-            "id": db_issue.id,
-            "series_id": db_issue.series_id,
-            "issue_number": db_issue.issue_number,
-            "title": db_issue.title,
-            "is_read": db_issue.is_read,
-            "is_downloaded": db_issue.is_downloaded,
-            "date_added": db_issue.date_added,
-            "date_read": db_issue.date_read
+            "id": db_issue.id, "series_id": db_issue.series_id,
+            "issue_number": db_issue.issue_number, "title": db_issue.title,
+            "is_read": db_issue.is_read, "is_downloaded": db_issue.is_downloaded,
+            "date_added": db_issue.date_added, "date_read": db_issue.date_read
         }
-        
     except HTTPException:
         raise
     except Exception as e:
         db.rollback()
-        print(f"Erro ao atualizar edição: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
 @app.patch("/series/{series_id}/issues/{issue_id}")
 async def patch_issue_read_status(
-    series_id: int,
-    issue_id: int,
-    update_data: dict,
-    db: Session = Depends(get_db)
+    series_id: int, issue_id: int, update_data: dict, db: Session = Depends(get_db)
 ):
-    """✅ CORREÇÃO: Atualizar status de leitura (PATCH method no caminho correto)"""
     try:
-        # Buscar a edição
         db_issue = db.query(IssueDB).filter(
-            IssueDB.id == issue_id,
-            IssueDB.series_id == series_id
+            IssueDB.id == issue_id, IssueDB.series_id == series_id
         ).first()
-        
         if not db_issue:
             raise HTTPException(status_code=404, detail="Edição não encontrada")
-        
-        # Atualizar apenas is_read se fornecido
         if "is_read" in update_data:
-            db_issue.is_read = update_data["is_read"]
-            
-            if update_data["is_read"]:
-                db_issue.date_read = datetime.now().isoformat()
-            else:
-                db_issue.date_read = None
-        
+            db_issue.is_read   = update_data["is_read"]
+            db_issue.date_read = datetime.now().isoformat() if update_data["is_read"] else None
         db.commit()
         db.refresh(db_issue)
-        
-        # Retornar a edição atualizada
         return {
-            "id": db_issue.id,
-            "series_id": db_issue.series_id,
-            "issue_number": db_issue.issue_number,
-            "title": db_issue.title,
-            "is_read": db_issue.is_read,
-            "is_downloaded": db_issue.is_downloaded,
-            "date_added": db_issue.date_added,
-            "date_read": db_issue.date_read
+            "id": db_issue.id, "series_id": db_issue.series_id,
+            "issue_number": db_issue.issue_number, "title": db_issue.title,
+            "is_read": db_issue.is_read, "is_downloaded": db_issue.is_downloaded,
+            "date_added": db_issue.date_added, "date_read": db_issue.date_read
         }
-        
     except HTTPException:
         raise
     except Exception as e:
         db.rollback()
-        print(f"Erro ao atualizar edição: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@app.delete("/issues/{issue_id}")
-async def delete_issue(issue_id: int, db: Session = Depends(get_db)):
-    """Deletar edição"""
-    try:
-        db_issue = db.query(IssueDB).filter(IssueDB.id == issue_id).first()
-        
-        if not db_issue:
-            raise HTTPException(status_code=404, detail="Edição não encontrada")
-        
-        # NÃO atualizar contadores - deixar para o cálculo híbrido
-        db.delete(db_issue)
-        db.commit()
-        
-        return {"message": "Edição deletada com sucesso"}
-        
-    except HTTPException:
-        raise
-    except Exception as e:
-        db.rollback()
-        print(f"Erro ao deletar edição: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
-
-
+# FIX #3: apenas UM endpoint de delete de issue (o com series_id, mais seguro)
 @app.delete("/series/{series_id}/issues/{issue_id}")
-async def delete_issue_alt(series_id: int, issue_id: int, db: Session = Depends(get_db)):
-    """Deletar edição (caminho alternativo com series_id)"""
+async def delete_issue(series_id: int, issue_id: int, db: Session = Depends(get_db)):
     try:
         db_issue = db.query(IssueDB).filter(
-            IssueDB.id == issue_id,
-            IssueDB.series_id == series_id
+            IssueDB.id == issue_id, IssueDB.series_id == series_id
         ).first()
-        
         if not db_issue:
             raise HTTPException(status_code=404, detail="Edição não encontrada")
-        
         db.delete(db_issue)
         db.commit()
-        
         return {"message": "Edição deletada com sucesso"}
-        
     except HTTPException:
         raise
     except Exception as e:
         db.rollback()
-        print(f"Erro ao deletar edição: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -732,26 +736,35 @@ async def delete_issue_alt(series_id: int, issue_id: int, db: Session = Depends(
 
 @app.get("/stats")
 async def get_stats(db: Session = Depends(get_db)):
-    """Obter estatísticas gerais"""
+    """
+    FIX #21: tudo calculado direto no banco com SQL — sem loop Python em memória.
+    FIX #15: inclui contador de sagas.
+    """
     try:
-        all_series = db.query(SeriesDB).all()
-        
-        stats = {
-            "total": len(all_series),
-            "para_ler": 0,
-            "lendo": 0,
-            "concluida": 0
+        total    = db.query(func.count(SeriesDB.id)).scalar() or 0
+        para_ler = db.query(func.count(SeriesDB.id)).filter(SeriesDB.read_issues == 0).scalar() or 0
+        lendo    = db.query(func.count(SeriesDB.id)).filter(
+            SeriesDB.read_issues > 0,
+            SeriesDB.read_issues < SeriesDB.total_issues
+        ).scalar() or 0
+        concluida = db.query(func.count(SeriesDB.id)).filter(
+            SeriesDB.read_issues >= SeriesDB.total_issues,
+            SeriesDB.total_issues > 0
+        ).scalar() or 0
+        # FIX #15
+        sagas = db.query(func.count(SeriesDB.id)).filter(
+            SeriesDB.series_type == 'saga'
+        ).scalar() or 0
+
+        return {
+            "total":    total,
+            "para_ler": para_ler,
+            "lendo":    lendo,
+            "concluida": concluida,
+            "concluidas": concluida,   # alias para compatibilidade com frontend existente
+            "sagas":    sagas
         }
-        
-        for series in all_series:
-            status = calculate_status(series.read_issues, series.total_issues)
-            if status in stats:
-                stats[status] += 1
-        
-        return stats
-        
     except Exception as e:
-        print(f"Erro ao calcular estatísticas: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -759,99 +772,192 @@ async def get_stats(db: Session = Depends(get_db)):
 
 @app.post("/recalculate-all")
 async def recalculate_all(db: Session = Depends(get_db)):
-    """
-    Recalcular contadores de TODAS as séries baseado nas issues cadastradas.
-    
-    Para cada série:
-    - Se HÁ issues cadastradas → atualiza downloaded_issues e read_issues
-    - Se NÃO HÁ issues → mantém valores da planilha (não altera)
-    
-    IMPORTANTE: NUNCA altera main_issues e tie_in_issues (campos de sagas)
-    """
+    """FIX #22: recalcula todos em UMA query batch, sem loop de N queries."""
     try:
         all_series = db.query(SeriesDB).all()
+        counts = get_issue_counts(db, [s.id for s in all_series])
         recalculated_count = 0
-        unchanged_count = 0
-        
+        unchanged_count    = 0
+
         for series in all_series:
-            # Contar issues reais
-            counts = db.query(
-                func.count(IssueDB.id).label('downloaded'),
-                func.sum(func.cast(IssueDB.is_read, Integer)).label('read')
-            ).filter(IssueDB.series_id == series.id).first()
-            
-            downloaded_real = counts.downloaded or 0
-            read_real = counts.read or 0
-            
-            # Se HÁ issues cadastradas, atualizar contadores
-            if downloaded_real > 0:
-                # Atualizar apenas se os valores mudaram
-                if series.downloaded_issues != downloaded_real or series.read_issues != read_real:
-                    series.downloaded_issues = downloaded_real
-                    series.read_issues = read_real
-                    series.date_updated = datetime.now().isoformat()
+            dl, rd = counts.get(series.id, (0, 0))
+            if dl > 0:
+                if series.downloaded_issues != dl or series.read_issues != rd:
+                    series.downloaded_issues = dl
+                    series.read_issues       = rd
+                    series.date_updated      = datetime.now().isoformat()
                     recalculated_count += 1
-                    
-                    # ✅ IMPORTANTE: Preservar main_issues e tie_in_issues
-                    # Não fazemos nada com esses campos - eles são gerenciados apenas via edição manual
             else:
-                # Sem issues - manter valores da planilha
                 unchanged_count += 1
-        
+
         db.commit()
-        
         return {
-            "message": "Recálculo concluído com sucesso",
+            "message":      "Recálculo concluído",
             "recalculated": recalculated_count,
-            "unchanged": unchanged_count,
-            "total": len(all_series)
+            "unchanged":    unchanged_count,
+            "total":        len(all_series),
+            "errors":       0
         }
-        
     except Exception as e:
         db.rollback()
-        print(f"Erro ao recalcular: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@app.post("/series/{series_id}/restore-saga-values")
-async def restore_saga_values(
-    series_id: int,
-    saga_data: dict,
-    db: Session = Depends(get_db)
-):
+# ==================== EXPORTAÇÃO (FIX #12) ====================
+
+@app.get("/export")
+async def export_data(db: Session = Depends(get_db)):
     """
-    Restaurar valores de main_issues e tie_in_issues para uma saga.
-    
-    Útil se os valores foram zerados acidentalmente.
+    FIX #12: exporta todos os dados como CSV para backup.
+    Evita perda de dados se o Railway resetar o banco.
     """
     try:
-        db_series = db.query(SeriesDB).filter(SeriesDB.id == series_id).first()
-        
-        if not db_series:
-            raise HTTPException(status_code=404, detail="Série não encontrada")
-        
-        if db_series.series_type != 'saga':
-            raise HTTPException(status_code=400, detail="Esta série não é uma saga")
-        
-        # Atualizar valores
-        if "main_issues" in saga_data:
-            db_series.main_issues = saga_data["main_issues"]
-        
-        if "tie_in_issues" in saga_data:
-            db_series.tie_in_issues = saga_data["tie_in_issues"]
-        
-        db_series.date_updated = datetime.now().isoformat()
-        
+        series_list = db.query(SeriesDB).order_by(SeriesDB.title).all()
+        counts = get_issue_counts(db, [s.id for s in series_list])
+
+        output = io.StringIO()
+        writer = csv.writer(output)
+        writer.writerow([
+            "id", "title", "author", "publisher", "series_type",
+            "total_issues", "downloaded_issues", "read_issues",
+            "is_completed", "year_start", "year_end",
+            "cover_url", "notes", "saga_editions",
+            "main_issues", "tie_in_issues", "date_added", "date_updated"
+        ])
+        for s in series_list:
+            dl, rd = counts.get(s.id, (0, 0))
+            downloaded = dl if dl > 0 else s.downloaded_issues
+            read       = rd if dl > 0 else s.read_issues
+            writer.writerow([
+                s.id, s.title, s.author or "", s.publisher or "",
+                s.series_type, s.total_issues, downloaded, read,
+                s.is_completed, s.year_start or "", s.year_end or "",
+                s.cover_url or "", s.notes or "", s.saga_editions or "",
+                s.main_issues or 0, s.tie_in_issues or 0,
+                s.date_added, s.date_updated or ""
+            ])
+
+        output.seek(0)
+        filename = f"hq_backup_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv"
+        return StreamingResponse(
+            iter([output.getvalue()]),
+            media_type="text/csv",
+            headers={"Content-Disposition": f"attachment; filename={filename}"}
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ==================== IMPORTAÇÃO (FIX #18) ====================
+
+@app.post("/import")
+async def import_data(file: UploadFile = File(...), db: Session = Depends(get_db)):
+    """
+    FIX #18: importa HQs de um arquivo CSV ou XLSX via UI.
+    Colunas obrigatórias: title
+    Colunas opcionais:  author, publisher, series_type, total_issues,
+                        read_issues, downloaded_issues, is_completed,
+                        year_start, year_end, cover_url, notes
+    """
+    try:
+        content = await file.read()
+        filename = file.filename.lower()
+
+        rows = []
+        if filename.endswith(".csv"):
+            text_content = content.decode("utf-8-sig")
+            reader = csv.DictReader(io.StringIO(text_content))
+            rows = list(reader)
+        elif filename.endswith((".xlsx", ".xls")):
+            try:
+                import openpyxl
+                wb = openpyxl.load_workbook(io.BytesIO(content))
+                ws = wb.active
+                headers = [str(cell.value or "").strip() for cell in ws[1]]
+                for row in ws.iter_rows(min_row=2, values_only=True):
+                    rows.append(dict(zip(headers, row)))
+            except ImportError:
+                raise HTTPException(status_code=400, detail="openpyxl não disponível para leitura de XLSX")
+        else:
+            raise HTTPException(status_code=400, detail="Formato inválido. Use CSV ou XLSX.")
+
+        created = 0
+        skipped = 0
+        errors  = 0
+        now     = datetime.now().isoformat()
+
+        for row in rows:
+            title = str(row.get("title", "") or row.get("Título", "") or row.get("titulo", "")).strip()
+            if not title:
+                skipped += 1
+                continue
+            try:
+                def _int(v, default=0):
+                    try: return int(v or default)
+                    except: return default
+                def _bool(v):
+                    return str(v).lower() in ("true", "1", "sim", "yes")
+
+                db_s = SeriesDB(
+                    title=title,
+                    author=str(row.get("author") or row.get("autor") or "").strip() or None,
+                    publisher=str(row.get("publisher") or row.get("editora") or "").strip() or None,
+                    series_type=str(row.get("series_type") or row.get("tipo") or "em_andamento").strip(),
+                    total_issues=_int(row.get("total_issues") or row.get("total")),
+                    downloaded_issues=_int(row.get("downloaded_issues") or row.get("baixadas")),
+                    read_issues=_int(row.get("read_issues") or row.get("lidas")),
+                    is_completed=_bool(row.get("is_completed") or row.get("finalizada")),
+                    year_start=_int(row.get("year_start"), None) or None,
+                    year_end=_int(row.get("year_end"), None) or None,
+                    cover_url=str(row.get("cover_url") or "").strip() or None,
+                    notes=str(row.get("notes") or row.get("notas") or "").strip() or None,
+                    saga_editions=str(row.get("saga_editions") or "").strip() or None,
+                    main_issues=_int(row.get("main_issues")),
+                    tie_in_issues=_int(row.get("tie_in_issues")),
+                    date_added=now,
+                )
+                db.add(db_s)
+                created += 1
+            except Exception as row_err:
+                print(f"Erro na linha '{title}': {row_err}")
+                errors += 1
+
         db.commit()
-        db.refresh(db_series)
-        
-        return series_to_response(db_series, db)
-        
+        return {
+            "message": f"Importação concluída",
+            "created": created,
+            "skipped": skipped,
+            "errors":  errors
+        }
     except HTTPException:
         raise
     except Exception as e:
         db.rollback()
-        print(f"Erro ao restaurar valores da saga: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ==================== RESTORE SAGA ====================
+
+@app.post("/series/{series_id}/restore-saga-values")
+async def restore_saga_values(series_id: int, saga_data: dict, db: Session = Depends(get_db)):
+    try:
+        db_s = db.query(SeriesDB).filter(SeriesDB.id == series_id).first()
+        if not db_s:
+            raise HTTPException(status_code=404, detail="Série não encontrada")
+        if db_s.series_type != 'saga':
+            raise HTTPException(status_code=400, detail="Esta série não é uma saga")
+        if "main_issues" in saga_data:
+            db_s.main_issues = saga_data["main_issues"]
+        if "tie_in_issues" in saga_data:
+            db_s.tie_in_issues = saga_data["tie_in_issues"]
+        db_s.date_updated = datetime.now().isoformat()
+        db.commit()
+        db.refresh(db_s)
+        return series_to_response(db_s)
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -859,19 +965,8 @@ async def restore_saga_values(
 
 if __name__ == "__main__":
     import uvicorn
-    
     port = int(os.getenv("PORT", 8000))
-    
     print("=" * 70)
-    print("HQ MANAGER API")
+    print("HQ MANAGER API v4.0.0")
     print("=" * 70)
-    print(f"🌐 Servidor: http://0.0.0.0:{port}")
-    print(f"📚 Docs: http://0.0.0.0:{port}/docs")
-    print("=" * 70)
-    
-    uvicorn.run(
-        "main:app",
-        host="0.0.0.0",
-        port=port,
-        reload=False
-    )
+    uvicorn.run("main:app", host="0.0.0.0", port=port, reload=False)
