@@ -10,7 +10,7 @@ let currentSeries = null;
 
 // Paginação
 let currentPage = 1;
-let perPage = 20;  // 20 HQs por página
+let perPage = 32;  // 32 HQs por página
 let totalPages = 1;
 let totalItems = 0;
 let paginationInfo = null;
@@ -286,17 +286,31 @@ function displaySeries() {
     
     if (filteredSeries.length === 0) {
         showEmptyState();
+        totalItems = 0;
+        totalPages = 1;
+        updatePaginationControls();
         return;
     }
+    
+    // Paginação local: 32 títulos por página
+    totalItems = filteredSeries.length;
+    totalPages = Math.ceil(totalItems / perPage);
+    if (totalPages < 1) totalPages = 1;
+    if (currentPage > totalPages) currentPage = 1;
+    
+    const startIdx = (currentPage - 1) * perPage;
+    const pageItems = filteredSeries.slice(startIdx, startIdx + perPage);
     
     emptyState.style.display = 'none';
     grid.style.display = 'grid';
     grid.innerHTML = '';
     
-    filteredSeries.forEach(series => {
+    pageItems.forEach(series => {
         const card = createSeriesCard(series);
         grid.appendChild(card);
     });
+    
+    updatePaginationControls();
 }
 
 function createSeriesCard(series) {
@@ -684,6 +698,7 @@ function filterSeries(filter, element) {
     console.log('📍 Elemento clicado:', element);
     
     currentFilter = filter;
+    currentPage = 1; // Resetar para página 1 ao trocar filtro
     
     // Atualizar ambos os tipos de filtros (se existirem)
     document.querySelectorAll('.filter-tab, .filter-tab-compact').forEach(tab => {
@@ -1583,9 +1598,15 @@ function goToPage(page) {
     
     // Obter o termo de busca atual
     const searchInput = document.getElementById('search-input');
-    const searchTerm = searchInput ? searchInput.value : '';
+    const searchTerm = searchInput ? searchInput.value.trim() : '';
     
-    loadSeries(searchTerm, currentPage);
+    if (searchTerm) {
+        // Busca ativa: paginação no servidor
+        loadSeries(searchTerm, currentPage);
+    } else {
+        // Sem busca: paginação local (dados já estão em allSeries)
+        displaySeries();
+    }
     
     // Scroll para o topo
     window.scrollTo({ top: 0, behavior: 'smooth' });
