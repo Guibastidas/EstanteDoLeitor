@@ -3593,20 +3593,18 @@ body.detail-page #filters-section {
 .stat-mini-box {
     display: inline-flex;
     flex-direction: row;
-    align-items: center;
-    justify-content: center;
-    gap: 0.2rem;
-    padding: 0.18rem 0.42rem;
+    align-items: baseline;
+    gap: 0.22rem;
+    padding: 0.2rem 0.45rem;
     background: linear-gradient(135deg, var(--color-primary) 0%, #1a4a4d 100%);
     border-radius: 5px;
     white-space: nowrap;
-    line-height: 1;
 }
 
 .stat-mini-box .stat-icon {
     font-size: 0.7rem;
-    line-height: 1;
-    vertical-align: middle;
+    position: relative;
+    top: 0.05rem;
 }
 
 .stat-mini-box .stat-label {
@@ -3614,16 +3612,14 @@ body.detail-page #filters-section {
     color: rgba(245, 251, 230, 0.75);
     text-transform: uppercase;
     letter-spacing: 0.2px;
-    line-height: 1;
-    vertical-align: middle;
+    font-family: inherit;
 }
 
 .stat-mini-box .stat-value {
     font-size: 0.72rem;
     font-weight: 800;
     color: #F5FBE6;
-    line-height: 1;
-    vertical-align: middle;
+    font-family: inherit;
 }
 
 /* Stats específicos de saga */
