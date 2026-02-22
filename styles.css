@@ -1,3 +1,6 @@
+/* Import display font for logo */
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&display=swap');
+
 :root {
     /* Nova Paleta de Cores */
     --color-bg: #F5FBE6;
@@ -73,14 +76,17 @@ body {
 .header-right {
     display: flex;
     align-items: center;
-    gap: 1rem;
+    gap: 0.4rem;
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    flex-wrap: nowrap;
 }
 
 .logo {
-    font-size: 1.5rem;
+    font-size: 1.4rem;
     font-weight: 700;
     color: #F5FBE6;
+    font-family: 'Playfair Display', 'Georgia', serif;
+    letter-spacing: -0.01em;
 }
 
 /* Search Box */
@@ -142,16 +148,16 @@ body {
 .btn-primary,
 .btn-secondary,
 .btn-back {
-    padding: 0.625rem 1.25rem;
+    padding: 0.42rem 1rem;
     border-radius: var(--radius);
     border: none;
-    font-size: 0.875rem;
-    font-weight: 500;
+    font-size: 0.82rem;
+    font-weight: 700;
     cursor: pointer;
     transition: var(--transition);
     display: inline-flex;
     align-items: center;
-    gap: 0.5rem;
+    gap: 0.4rem;
 }
 
 .btn-primary {
@@ -192,14 +198,15 @@ body {
     background: linear-gradient(135deg, var(--color-accent) 0%, #e66d1f 100%);
     color: white;
     border: none;
-    padding: 12px 24px;
-    border-radius: 8px;
-    font-weight: 600;
+    padding: 0.4rem 0.85rem;
+    border-radius: var(--radius);
+    font-weight: 700;
+    font-size: 0.78rem;
     cursor: pointer;
-    transition: all 0.3s ease;
+    transition: all 0.2s ease;
     display: inline-flex;
     align-items: center;
-    gap: 8px;
+    gap: 6px;
 }
 
 .btn-sync:hover {
@@ -1219,16 +1226,16 @@ body {
 .btn-export {
     display: inline-flex;
     align-items: center;
-    gap: 8px;
-    padding: 10px 16px;
-    background: linear-gradient(135deg, #16a34a 0%, #15803d 100%);
-    color: white;
-    border: none;
-    border-radius: 8px;
-    font-weight: 600;
+    gap: 6px;
+    padding: 0.38rem 0.75rem;
+    background: rgba(255,255,255,0.12);
+    color: #F5FBE6;
+    border: 1px solid rgba(255,255,255,0.2);
+    border-radius: var(--radius);
+    font-weight: 700;
     cursor: pointer;
     transition: all 0.2s;
-    font-size: 0.9rem;
+    font-size: 0.78rem;
 }
 
 .btn-export:hover {
@@ -1496,6 +1503,8 @@ body {
     background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-hover) 100%);
     color: white;
     border: none;
+    padding: 0.4rem 0.85rem;
+    font-size: 0.78rem;
 }
 
 .btn-sync:hover {
@@ -1720,7 +1729,7 @@ body {
 
 /* Header mais compacto */
 .header {
-    padding: 0.75rem 0;
+    padding: 0.6rem 0;
     background: var(--color-primary);
     border-bottom: 2px solid rgba(255, 255, 255, 0.1);
     position: sticky;
@@ -3165,15 +3174,19 @@ body {
 .btn-action-detail {
     flex: 1;
     min-width: calc(25% - 0.6rem);
-    padding: 0.75rem 0.75rem;
+    padding: 0.45rem 0.6rem;
     border-radius: var(--radius);
     border: none;
-    font-size: 0.85rem;
-    font-weight: 600;
+    font-size: 0.77rem;
+    font-weight: 700;
     cursor: pointer;
     transition: var(--transition);
     background: var(--color-accent);
     color: white;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.25rem;
 }
 
 .btn-action-detail:hover {
@@ -3552,13 +3565,14 @@ body.detail-page #filters-section {
 
 .stat-mini-box {
     display: flex;
-    flex-direction: row;  /* HORIZONTAL: ícone | texto | valor */
+    flex-direction: row;
     align-items: center;
     justify-content: center;
-    gap: 0.4rem;
-    padding: 0.4rem 0.6rem;
+    gap: 0.35rem;
+    padding: 0.3rem 0.65rem;
     background: linear-gradient(135deg, var(--color-primary) 0%, #1a4a4d 100%);
-    border-radius: var(--radius);
+    border-radius: 6px;
+    font-size: 0.75rem;
 }
 
 .stat-mini-box .stat-icon {
@@ -3566,17 +3580,17 @@ body.detail-page #filters-section {
 }
 
 .stat-mini-box .stat-label {
-    font-size: 0.7rem;
+    font-size: 0.68rem;
     color: rgba(245, 251, 230, 0.8);
     text-transform: uppercase;
     letter-spacing: 0.3px;
 }
 
 .stat-mini-box .stat-value {
-    font-size: 1.1rem;
-    font-weight: 700;
+    font-size: 0.95rem;
+    font-weight: 800;
     color: #F5FBE6;
-    margin-left: 0.2rem;
+    margin-left: 0.1rem;
 }
 
 /* Stats específicos de saga */
@@ -3687,15 +3701,20 @@ body.detail-page #filters-section {
 .btn-action-detail {
     flex: 1;
     min-width: calc(25% - 0.6rem);
-    padding: 0.625rem 0.75rem;
+    padding: 0.45rem 0.6rem;
     border-radius: var(--radius);
     border: none;
-    font-size: 0.8rem;
-    font-weight: 600;
+    font-size: 0.77rem;
+    font-weight: 700;
     cursor: pointer;
     transition: var(--transition);
     background: var(--color-accent);
     color: white;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.25rem;
+    white-space: nowrap;
 }
 
 .btn-action-detail:hover {
@@ -3742,54 +3761,73 @@ body.detail-page #filters-section {
 
 .issues-header-actions {
     display: flex;
-    gap: 0.5rem;
+    gap: 0.3rem;
     align-items: center;
+    flex-wrap: wrap;
 }
 
 .btn-sync-inline {
-    padding: 0.4rem 0.75rem;
-    border-radius: var(--radius);
-    border: none;
-    font-size: 0.75rem;
-    font-weight: 600;
+    padding: 0.28rem 0.65rem;
+    border-radius: 6px;
+    font-size: 0.7rem;
+    font-weight: 700;
     cursor: pointer;
-    background: var(--color-primary);
-    color: white;
     transition: var(--transition);
+    display: inline-flex;
+    align-items: center;
+    gap: 0.2rem;
+    white-space: nowrap;
+    /* default: primary outline */
+    background: rgba(33,94,97,0.08);
+    color: var(--color-primary);
+    border: 1px solid rgba(33,94,97,0.2);
 }
 
 .btn-sync-inline:hover {
-    background: var(--color-primary-hover);
-    transform: scale(1.05);
+    background: rgba(33,94,97,0.18);
+    transform: none;
 }
 
+/* Todas Lidas — green */
 .btn-mark-all {
     font-size: 0.7rem;
-    padding: 0.35rem 0.6rem;
+    padding: 0.28rem 0.65rem;
+    background: rgba(16,185,129,0.12);
+    color: #047857;
+    border: 1px solid rgba(16,185,129,0.3);
+    border-radius: 6px;
 }
 
 .btn-mark-all:first-of-type {
-    background: var(--color-success);
+    background: rgba(16,185,129,0.12);
+    color: #047857;
+    border: 1px solid rgba(16,185,129,0.3);
 }
 
 .btn-mark-all:first-of-type:hover {
-    background: #059669;
+    background: rgba(16,185,129,0.22);
 }
 
+/* Todas Não Lidas — amber */
 .btn-mark-all:nth-of-type(2) {
-    background: var(--color-warning);
+    background: rgba(245,158,11,0.12);
+    color: #b45309;
+    border: 1px solid rgba(245,158,11,0.3);
 }
 
 .btn-mark-all:nth-of-type(2):hover {
-    background: #d97706;
+    background: rgba(245,158,11,0.22);
 }
 
+/* Todas Não Baixadas — red */
 .btn-mark-not-downloaded {
-    background: var(--color-danger) !important;
+    background: rgba(239,68,68,0.1) !important;
+    color: #dc2626 !important;
+    border: 1px solid rgba(239,68,68,0.25) !important;
 }
 
 .btn-mark-not-downloaded:hover {
-    background: #dc2626 !important;
+    background: rgba(239,68,68,0.2) !important;
 }
 
 .issues-grid-inline {
@@ -4344,12 +4382,12 @@ body.dark-mode .mobile-menu {
 /* Botão dark mode */
 .btn-dark-mode {
     background: transparent;
-    border: 1px solid rgba(255,255,255,0.3);
+    border: 1px solid rgba(255,255,255,0.2);
     color: #F5FBE6;
     border-radius: var(--radius);
-    padding: 0.4rem 0.6rem;
+    padding: 0.38rem 0.5rem;
     cursor: pointer;
-    font-size: 1rem;
+    font-size: 0.9rem;
     transition: var(--transition);
     line-height: 1;
 }
@@ -4482,25 +4520,25 @@ body.dark-mode .skeleton-line {
 /* ---- BOTÃO EXPORTAR / IMPORTAR ---- */
 .btn-export,
 .btn-import {
-    padding: 0.5rem 1rem;
+    padding: 0.38rem 0.75rem;
     border-radius: var(--radius);
-    border: 1px solid var(--color-border);
-    background: var(--color-bg);
-    color: var(--color-text-secondary);
-    font-size: 0.8rem;
-    font-weight: 600;
+    border: 1px solid rgba(255,255,255,0.2);
+    background: rgba(255,255,255,0.12);
+    color: #F5FBE6;
+    font-size: 0.78rem;
+    font-weight: 700;
     cursor: pointer;
     transition: var(--transition);
     display: inline-flex;
     align-items: center;
-    gap: 0.4rem;
+    gap: 0.35rem;
+    line-height: 1;
 }
 
 .btn-export:hover,
 .btn-import:hover {
-    background: var(--color-surface);
-    color: var(--color-text);
-    border-color: var(--color-accent);
+    background: rgba(255,255,255,0.22);
+    border-color: rgba(255,255,255,0.35);
 }
 
 /* ---- MODAL DE IMPORTAÇÃO ---- */
