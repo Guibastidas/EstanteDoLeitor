@@ -102,6 +102,7 @@ body {
 .header-row1 {
   display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: .75rem;
   height: 56px;
 }
@@ -461,8 +462,8 @@ body.dark-mode .page-num.active { color: #000; }
 }
 
 .detail-cover-column {
-  width: 360px;
-  min-width: 360px;
+  width: 420px;
+  min-width: 420px;
   max-height: 100%;
   position: relative;
   overflow: hidden;
