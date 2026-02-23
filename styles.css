@@ -342,15 +342,36 @@ body.dark-mode .comic-card:hover {
 body.dark-mode .series-type-badge.type-finalizada { color:var(--emerald); border-color:rgba(34,211,160,.4); background:rgba(34,211,160,.2); }
 body.dark-mode .series-type-badge.type-andamento  { color:var(--sky);     border-color:rgba(96,165,250,.4); background:rgba(96,165,250,.2); }
 
-/* Progress bar */
-.progress-bar-container {
-  height: 3px; background: rgba(0,0,0,.1); border-radius: 99px; overflow: hidden;
+/* Progress bar — cover footer overlay */
+.cover-progress-footer {
+  position: absolute; bottom: 0; left: 0; right: 0;
+  padding: 1.8rem .7rem .52rem;
+  background: linear-gradient(transparent, rgba(0,0,0,.68) 55%, rgba(0,0,0,.86));
+  pointer-events: none;
 }
-body.dark-mode .progress-bar-container { background: rgba(255,255,255,.12); }
-.progress-bar {
+.cover-prog-pct {
+  font-size: .58rem; font-weight: 700; color: rgba(255,255,255,.72);
+  text-align: right; margin-bottom: .28rem; letter-spacing: .3px;
+  font-family: 'DM Sans', sans-serif;
+}
+.cover-prog-track {
+  height: 3px; background: rgba(255,255,255,.18); border-radius: 99px; overflow: hidden;
+}
+.cover-prog-fill {
   height: 100%; border-radius: 99px;
   background: linear-gradient(90deg, var(--amber), #e09a3a);
-  transition: width .3s;
+  transition: width .3s; position: relative;
+}
+.cover-prog-fill::after {
+  content: ''; position: absolute; right: -1px; top: -3px;
+  width: 9px; height: 9px; border-radius: 50%;
+  background: var(--amber);
+  box-shadow: 0 0 7px var(--amber), 0 0 14px rgba(212,134,10,.45);
+}
+body.dark-mode .cover-prog-fill { background: linear-gradient(90deg, #f4a535, #ffb74d); }
+body.dark-mode .cover-prog-fill::after {
+  background: #f4a535;
+  box-shadow: 0 0 8px #f4a535, 0 0 18px rgba(244,165,53,.5);
 }
 
 /* Card info */
@@ -368,13 +389,6 @@ body.dark-mode .progress-bar-container { background: rgba(255,255,255,.12); }
   font-size: .66rem; color: var(--muted); margin-bottom: .35rem;
 }
 .comic-stats strong { color: var(--text); }
-.comic-progress-header {
-  display: flex; justify-content: space-between;
-  font-size: .63rem; color: var(--muted); margin-bottom: .18rem;
-}
-.progress-label { color: var(--dimmed); }
-.progress-value { color: var(--muted); }
-
 .comic-status-row, .card-bottom {
   display: flex; align-items: center; justify-content: space-between; margin-top: .4rem;
 }

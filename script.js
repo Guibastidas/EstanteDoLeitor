@@ -380,15 +380,14 @@ function createSeriesCard(series) {
                    <div class="comic-cover-placeholder" style="display:none;">📖</div>`
                 : `<div class="comic-cover-placeholder">📖</div>`
             }
+            <div class="cover-progress-footer">
+                <div class="cover-prog-pct">${series.read_issues} / ${series.total_issues} &middot; ${progress}%</div>
+                <div class="cover-prog-track">
+                    <div class="cover-prog-fill" style="width: ${progress}%"></div>
+                </div>
+            </div>
         </div>
         <div class="comic-info">
-            <div class="comic-progress-header">
-                <span class="progress-label">Progresso</span>
-                <span class="progress-value">${series.read_issues}/${series.total_issues} (${progress}%)</span>
-            </div>
-            <div class="progress-bar-container">
-                <div class="progress-bar" style="width: ${progress}%"></div>
-            </div>
             <h3 class="comic-title">${series.title}</h3>
             ${series.author    ? `<p class="comic-author">✍️ ${series.author}</p>`    : ''}
             ${series.publisher ? `<p class="comic-publisher">📚 ${series.publisher}</p>` : ''}
