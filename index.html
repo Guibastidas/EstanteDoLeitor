@@ -15,7 +15,7 @@
     <!-- ===================== HEADER ===================== -->
     <header class="header" id="main-header">
         <div class="header-inner">
-            <!-- Row 1: Logo + Search + Actions -->
+            <!-- Row 1: Hamburger + Logo + Dark Mode (desktop: também search + actions) -->
             <div class="header-row1">
                 <div class="header-left">
                     <button class="btn-hamburger" id="btn-hamburger" onclick="toggleMobileMenu()">☰</button>
@@ -23,9 +23,10 @@
                     <span class="logo" onclick="goToHome()">Estante do Leitor</span>
                 </div>
 
-                <div class="search-wrap" style="flex:1;max-width:360px;">
-                    <input type="text" id="search-input" placeholder="Buscar HQs, autores, editoras…" onkeyup="handleSearch()">
-                    <button class="search-clear" id="search-clear" onclick="clearSearch()" style="display:none;">×</button>
+                <!-- Desktop: busca inline na row1 -->
+                <div class="search-wrap search-wrap-desktop" style="flex:1;max-width:360px;">
+                    <input type="text" id="search-input-desktop" placeholder="Buscar HQs, autores, editoras…" onkeyup="handleSearchDesktop()">
+                    <button class="search-clear" id="search-clear-desktop" onclick="clearSearchDesktop()" style="display:none;">×</button>
                     <span class="search-icon">🔍</span>
                 </div>
 
@@ -36,11 +37,25 @@
                     <button class="h-btn btn-import" onclick="openImportModal()" title="Importar HQs de CSV/XLSX">↑ Importar</button>
                     <button class="h-btn btn-sync" onclick="recalcularTodasHQs(event)" title="Recalcular edições de TODAS as HQs">↺ Recalcular</button>
                     <div class="h-sep"></div>
-                    <button class="h-btn h-btn-primary" onclick="openModal()">+ Nova HQ</button>
+                    <button class="h-btn h-btn-primary btn-nova-desktop" onclick="openModal()">+ Nova HQ</button>
                 </div>
             </div>
 
-            <!-- Row 2: Filter Tabs + Stats -->
+            <!-- Mobile Row 2: campo de busca full width (oculto no desktop) -->
+            <div class="header-row-mobile-search">
+                <div class="search-wrap" style="width:100%;">
+                    <input type="text" id="search-input" placeholder="Buscar HQs, autores, editoras…" onkeyup="handleSearch()">
+                    <button class="search-clear" id="search-clear" onclick="clearSearch()" style="display:none;">×</button>
+                    <span class="search-icon">🔍</span>
+                </div>
+            </div>
+
+            <!-- Mobile Row 3: botão Nova HQ full width (oculto no desktop) -->
+            <div class="header-row-mobile-nova">
+                <button class="btn-nova-mobile h-btn h-btn-primary" onclick="openModal()">+ Nova HQ</button>
+            </div>
+
+            <!-- Row final: Filter Tabs + Stats -->
             <div class="header-row2" id="filters-section">
                 <div class="filter-tabs-compact">
                     <button class="filter-tab-compact active" data-filter="all" onclick="filterSeries('all', this)">Todas</button>
@@ -85,6 +100,15 @@
                     <div class="mobile-stat"><span class="mobile-stat-label">Para Ler</span><span class="mobile-stat-value" id="mobile-stat-para-ler">0</span></div>
                     <div class="mobile-stat"><span class="mobile-stat-label">Lendo</span><span class="mobile-stat-value" id="mobile-stat-lendo">0</span></div>
                     <div class="mobile-stat"><span class="mobile-stat-label">Concluídas</span><span class="mobile-stat-value" id="mobile-stat-concluidas">0</span></div>
+                </div>
+            </div>
+            <div class="mobile-menu-section">
+                <h4>Ações</h4>
+                <div class="mobile-filters">
+                    <button class="mobile-filter-btn" onclick="toggleDarkMode();toggleMobileMenu()">🌙 Modo Escuro</button>
+                    <button class="mobile-filter-btn" onclick="exportarDados();toggleMobileMenu()">↓ Exportar</button>
+                    <button class="mobile-filter-btn" onclick="openImportModal();toggleMobileMenu()">↑ Importar</button>
+                    <button class="mobile-filter-btn" onclick="recalcularTodasHQs(event);toggleMobileMenu()">↺ Recalcular</button>
                 </div>
             </div>
         </div>

@@ -655,6 +655,28 @@ function handleSearch() {
     const query    = document.getElementById('search-input').value;
     const clearBtn = document.getElementById('search-clear');
     clearBtn.style.display = query ? 'block' : 'none';
+    // Sincroniza com o campo desktop
+    const desktopInput = document.getElementById('search-input-desktop');
+    if (desktopInput) desktopInput.value = query;
+    const desktopClear = document.getElementById('search-clear-desktop');
+    if (desktopClear) desktopClear.style.display = query ? 'block' : 'none';
+
+    clearTimeout(searchTimeout);
+    searchTimeout = setTimeout(() => {
+        currentPage = 1;
+        loadSeries(query, 1);
+    }, 300);
+}
+
+function handleSearchDesktop() {
+    const query    = document.getElementById('search-input-desktop').value;
+    const clearBtn = document.getElementById('search-clear-desktop');
+    clearBtn.style.display = query ? 'block' : 'none';
+    // Sincroniza com o campo mobile
+    const mobileInput = document.getElementById('search-input');
+    if (mobileInput) mobileInput.value = query;
+    const mobileClear = document.getElementById('search-clear');
+    if (mobileClear) mobileClear.style.display = query ? 'block' : 'none';
 
     clearTimeout(searchTimeout);
     searchTimeout = setTimeout(() => {
@@ -666,6 +688,21 @@ function handleSearch() {
 function clearSearch() {
     document.getElementById('search-input').value  = '';
     document.getElementById('search-clear').style.display = 'none';
+    const desktopInput = document.getElementById('search-input-desktop');
+    if (desktopInput) desktopInput.value = '';
+    const desktopClear = document.getElementById('search-clear-desktop');
+    if (desktopClear) desktopClear.style.display = 'none';
+    currentPage = 1;
+    loadSeries('', 1);
+}
+
+function clearSearchDesktop() {
+    document.getElementById('search-input-desktop').value = '';
+    document.getElementById('search-clear-desktop').style.display = 'none';
+    const mobileInput = document.getElementById('search-input');
+    if (mobileInput) mobileInput.value = '';
+    const mobileClear = document.getElementById('search-clear');
+    if (mobileClear) mobileClear.style.display = 'none';
     currentPage = 1;
     loadSeries('', 1);
 }
@@ -1246,7 +1283,7 @@ function addEllipsis() {
 function goToPage(page) {
     if (page < 1 || page > totalPages || page === currentPage) return;
     currentPage = page;
-    const searchTerm = document.getElementById('search-input')?.value.trim() || '';
+    const searchTerm = (document.getElementById('search-input')?.value.trim() || document.getElementById('search-input-desktop')?.value.trim()) || '';
     if (searchTerm) loadSeries(searchTerm, currentPage);
     else displaySeries();
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -1387,9 +1424,9 @@ function closeNotesModal() {
 function toggleMobileMenu() {
     const menu    = document.getElementById('mobile-menu');
     const overlay = document.getElementById('mobile-menu-overlay');
-    menu.classList.toggle('active');
-    overlay.classList.toggle('active');
-    document.body.style.overflow = menu.classList.contains('active') ? 'hidden' : '';
+    menu.classList.toggle('open');
+    overlay.classList.toggle('open');
+    document.body.style.overflow = menu.classList.contains('open') ? 'hidden' : '';
 }
 
 function filterSeriesFromMobile(filter, button) {

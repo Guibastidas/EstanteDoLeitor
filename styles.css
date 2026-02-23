@@ -116,8 +116,18 @@ body {
   border-top: 1px solid var(--border);
 }
 
-/* Logo */
-.logo {
+/* Mobile-only header rows (hidden on desktop) */
+.header-row-mobile-search,
+.header-row-mobile-nova { display: none; }
+
+/* Nova HQ mobile button — full width */
+.btn-nova-mobile {
+  width: 100%; justify-content: center;
+  padding: .52rem 1rem; font-size: .82rem; font-weight: 700;
+}
+
+/* Desktop: hide mobile-only dark mode button from h-actions on small screens */
+.btn-dark-mobile { display: none; }
   font-family: 'Bebas Neue', sans-serif;
   font-size: 1.5rem;
   color: var(--amber);
@@ -975,9 +985,33 @@ body.dark-mode .scroll-to-top { color: #000; }
   .header-row1 { height: 50px; gap: .35rem; }
   .header-row2 { height: auto; padding: .3rem 0; }
   .logo { font-size: 1.2rem; }
-  .search-wrap { max-width: unset; flex: 1; min-width: 0; }
-  .search-wrap input { font-size: .78rem; padding: .4rem 1.8rem .4rem .7rem; }
-  .h-actions .btn-import { display: none; }
+
+  /* Desktop search e botão Nova HQ ficam ocultos no mobile */
+  .search-wrap-desktop { display: none !important; }
+  .btn-nova-desktop { display: none !important; }
+
+  /* Dark mode e separadores ocultos no header-actions do mobile
+     (ações vão para o menu hamburguer) */
+  .h-actions .btn-export,
+  .h-actions .btn-import,
+  .h-actions .btn-sync,
+  .h-actions #btn-dark-mode,
+  .h-sep { display: none; }
+
+  /* Linhas exclusivas do mobile aparecem */
+  .header-row-mobile-search {
+    display: block;
+    padding: .3rem 0 .25rem;
+    border-top: 1px solid var(--border);
+  }
+  .header-row-mobile-nova {
+    display: block;
+    padding: .25rem 0 .3rem;
+  }
+  .search-wrap { max-width: unset; width: 100%; }
+  .search-wrap input { font-size: .82rem; padding: .44rem 1.9rem .44rem .8rem; width: 100%; }
+
+  /* Filter tabs */
   .h-stats { display: none; }
   .filter-tabs-compact {
     gap: .08rem; overflow-x: auto; padding-bottom: 3px;
