@@ -12,7 +12,7 @@ let currentSeries = null;
 
 // Paginação
 let currentPage = 1;
-let perPage = 32;
+let perPage = 36;
 let totalPages = 1;
 let totalItems = 0;
 let paginationInfo = null;
@@ -1230,7 +1230,7 @@ function updatePageNumbers() {
 
 function addPageButton(pageNum) {
     const btn = document.createElement('button');
-    btn.className   = 'page-number' + (pageNum === currentPage ? ' active' : '');
+    btn.className   = 'page-num' + (pageNum === currentPage ? ' active' : '');
     btn.textContent = pageNum;
     btn.onclick     = () => goToPage(pageNum);
     document.getElementById('page-numbers').appendChild(btn);

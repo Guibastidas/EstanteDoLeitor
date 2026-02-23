@@ -465,6 +465,10 @@ body.dark-mode .comic-status.concluida, body.dark-mode .s-done    { background:r
 .page-num.active { background: var(--amber); border-color: var(--amber); color: #fff; font-weight: 700; }
 body.dark-mode .page-num.active { color: #000; }
 .page-num:hover:not(.active) { color: var(--text); border-color: var(--amber); }
+.page-ellipsis {
+  padding: .3rem .3rem; color: var(--dimmed); font-size: .76rem;
+  display: flex; align-items: center; user-select: none;
+}
 
 /* =====================================================
    DETAIL VIEW
