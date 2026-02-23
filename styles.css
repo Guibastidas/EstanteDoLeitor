@@ -102,7 +102,6 @@ body {
 .header-row1 {
   display: flex;
   align-items: center;
-  justify-content: space-between;
   gap: .75rem;
   height: 56px;
 }
@@ -488,6 +487,41 @@ body.dark-mode .page-num.active { color: #000; }
   display: flex; align-items: center; justify-content: center;
   font-size: 5rem; opacity: .2; color: var(--muted);
   background: linear-gradient(160deg, var(--ink-3), var(--ink-4));
+}
+
+/* Progress overlay on cover */
+.detail-cover-progress-overlay {
+  position: absolute;
+  bottom: 0; left: 0; right: 0;
+  padding: 2.5rem .85rem .75rem;
+  background: linear-gradient(transparent, rgba(0,0,0,.75) 50%, rgba(0,0,0,.92));
+  border-radius: 0 0 var(--r-lg) var(--r-lg);
+}
+.detail-cover-prog-bar {
+  height: 5px;
+  background: linear-gradient(90deg, var(--amber), #e09a3a);
+  border-radius: 99px;
+  width: 0%;
+  transition: width .5s cubic-bezier(.4,0,.2,1);
+  position: relative;
+  box-shadow: 0 0 10px rgba(212,134,10,.5);
+}
+.detail-cover-prog-bar::after {
+  content: '';
+  position: absolute; right: -1px; top: -3px;
+  width: 11px; height: 11px; border-radius: 50%;
+  background: var(--amber);
+  box-shadow: 0 0 10px var(--amber), 0 0 20px rgba(212,134,10,.4);
+  transition: opacity .3s;
+}
+.detail-cover-prog-bar[style*="100%"]::after { opacity: 0; }
+body.dark-mode .detail-cover-prog-bar {
+  background: linear-gradient(90deg, #f4a535, #ffb74d);
+  box-shadow: 0 0 12px rgba(244,165,53,.6);
+}
+body.dark-mode .detail-cover-prog-bar::after {
+  background: #f4a535;
+  box-shadow: 0 0 10px #f4a535, 0 0 22px rgba(244,165,53,.5);
 }
 
 .detail-content-column {

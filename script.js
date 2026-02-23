@@ -507,6 +507,8 @@ async function loadSeriesDetail(seriesId) {
         document.getElementById('detail-progress').textContent =
             `${series.read_issues}/${series.total_issues} edições (${progress}%)`;
         document.getElementById('detail-progress-bar').style.width = `${progress}%`;
+        const coverProgBar = document.getElementById('detail-cover-prog-bar');
+        if (coverProgBar) coverProgBar.style.width = `${progress}%`;
         document.getElementById('detail-reading').textContent    = series.read_issues;
         document.getElementById('detail-downloaded').textContent = series.downloaded_issues;
         document.getElementById('detail-total').textContent      = series.total_issues;
