@@ -6,376 +6,297 @@
     <title>Estante do Leitor</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600;700&family=DM+Serif+Display:ital@0;1&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-    <div class="app">
-        <!-- Header -->
-        <header class="header" id="main-header">
-            <div class="container">
-                <!-- Primeira linha: Logo e Ações -->
-                <div class="header-top">
-                    <div class="header-left">
-                        <button class="btn-hamburger" id="btn-hamburger" onclick="toggleMobileMenu()">
-                            ☰
-                        </button>
-                        <button class="btn-back" id="btn-back" onclick="goToHome()" style="display: none;">
-                           ⬅️ Voltar
-                        </button>
-                        <h1 class="logo" onclick="goToHome()" style="cursor: pointer;">Estante do Leitor</h1>
-                    </div>
-                    
-                    <div class="header-right" id="header-actions">
-                        <div class="search-box">
-                            <input type="text" id="search-input" placeholder="Buscar HQs..." onkeyup="handleSearch()">
-                            <button class="search-clear" id="search-clear" onclick="clearSearch()" style="display: none;">&times;</button>
-                            <span class="search-icon">🔍</span>
-                        </div>
-                        <button class="btn-dark-mode" id="btn-dark-mode" onclick="toggleDarkMode()" title="Alternar modo escuro">🌙</button>
-                        <button class="btn-export" onclick="exportarDados()" title="Exportar backup CSV">⬇️ Exportar</button>
-                        <button class="btn-import" onclick="openImportModal()" title="Importar HQs de CSV/XLSX">⬆️ Importar</button>
-                        <button class="btn-sync" onclick="recalcularTodasHQs(event)" title="Recalcular edições de TODAS as HQs baseado na planilha">
-                            🔄 Recalcular Tudo
-                        </button>
-                        <button class="btn-primary" onclick="openModal()">
-                            <span>+</span> Nova HQ
-                        </button>
-                    </div>
-                </div>
-                
-                <!-- Segunda linha: Filtros + Stats compactos -->
-                <div class="header-filters" id="filters-section">
-                    <div class="filter-tabs-compact">
-                        <button class="filter-tab-compact active" data-filter="all" onclick="filterSeries('all', this)">
-                            📚 Todas
-                        </button>
-                        <button class="filter-tab-compact" data-filter="para_ler" onclick="filterSeries('para_ler', this)">
-                            📖 Para Ler
-                        </button>
-                        <button class="filter-tab-compact" data-filter="lendo" onclick="filterSeries('lendo', this)">
-                            📗 Lendo
-                        </button>
-                        <button class="filter-tab-compact" data-filter="concluida" onclick="filterSeries('concluida', this)">
-                            ✅ Concluídas
-                        </button>
-                        <button class="filter-tab-compact" data-filter="saga" onclick="filterSeries('saga', this)">
-                            🎭 Sagas
-                        </button>
-                    </div>
-                    
-                    <!-- Stats inline ao lado dos filtros -->
-                    <div class="header-stats-inline">
-                        <div class="header-stat">
-                            <span class="header-stat-value" id="stat-total">0</span>
-                            <span class="header-stat-label">Total</span>
-                        </div>
-                        <div class="header-stat">
-                            <span class="header-stat-value" id="stat-para-ler">0</span>
-                            <span class="header-stat-label">Para Ler</span>
-                        </div>
-                        <div class="header-stat">
-                            <span class="header-stat-value" id="stat-lendo">0</span>
-                            <span class="header-stat-label">Lendo</span>
-                        </div>
-                        <div class="header-stat">
-                            <span class="header-stat-value" id="stat-concluidas">0</span>
-                            <span class="header-stat-label">Concluídas</span>
-                        </div>
-                        <div class="header-stat">
-                            <span class="header-stat-value" id="stat-sagas">0</span>
-                            <span class="header-stat-label">Sagas</span>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </header>
+<div class="app">
 
-        <!-- Menu Lateral Mobile -->
-        <div class="mobile-menu-overlay" id="mobile-menu-overlay" onclick="toggleMobileMenu()"></div>
-        <div class="mobile-menu" id="mobile-menu">
-            <div class="mobile-menu-header">
-                <h3>Menu</h3>
-                <button class="mobile-menu-close" onclick="toggleMobileMenu()">&times;</button>
-            </div>
-            
-            <div class="mobile-menu-content">
-                <!-- Filtros -->
-                <div class="mobile-menu-section">
-                    <h4>Filtros</h4>
-                    <div class="mobile-filters">
-                        <button class="mobile-filter-btn active" data-filter="all" onclick="filterSeriesFromMobile('all', this)">
-                            📚 Todas
-                        </button>
-                        <button class="mobile-filter-btn" data-filter="para_ler" onclick="filterSeriesFromMobile('para_ler', this)">
-                            📖 Para Ler
-                        </button>
-                        <button class="mobile-filter-btn" data-filter="lendo" onclick="filterSeriesFromMobile('lendo', this)">
-                            📗 Lendo
-                        </button>
-                        <button class="mobile-filter-btn" data-filter="concluida" onclick="filterSeriesFromMobile('concluida', this)">
-                            ✅ Concluídas
-                        </button>
-                        <button class="mobile-filter-btn" data-filter="saga" onclick="filterSeriesFromMobile('saga', this)">
-                            🎭 Sagas
-                        </button>
-                    </div>
+    <!-- ===================== HEADER ===================== -->
+    <header class="header" id="main-header">
+        <div class="header-inner">
+            <!-- Row 1: Logo + Search + Actions -->
+            <div class="header-row1">
+                <div class="header-left">
+                    <button class="btn-hamburger" id="btn-hamburger" onclick="toggleMobileMenu()">☰</button>
+                    <button class="btn-back h-btn h-btn-back" id="btn-back" onclick="goToHome()" style="display:none;">← Voltar</button>
+                    <span class="logo" onclick="goToHome()">Estante do Leitor</span>
                 </div>
-                
-                <!-- Stats -->
-                <div class="mobile-menu-section">
-                    <h4>Estatísticas</h4>
-                    <div class="mobile-stats">
-                        <div class="mobile-stat">
-                            <span class="mobile-stat-label">Total</span>
-                            <span class="mobile-stat-value" id="mobile-stat-total">0</span>
-                        </div>
-                        <div class="mobile-stat">
-                            <span class="mobile-stat-label">Para Ler</span>
-                            <span class="mobile-stat-value" id="mobile-stat-para-ler">0</span>
-                        </div>
-                        <div class="mobile-stat">
-                            <span class="mobile-stat-label">Lendo</span>
-                            <span class="mobile-stat-value" id="mobile-stat-lendo">0</span>
-                        </div>
-                        <div class="mobile-stat">
-                            <span class="mobile-stat-label">Concluídas</span>
-                            <span class="mobile-stat-value" id="mobile-stat-concluidas">0</span>
-                        </div>
-                    </div>
+
+                <div class="search-wrap" style="flex:1;max-width:360px;">
+                    <input type="text" id="search-input" placeholder="Buscar HQs, autores, editoras…" onkeyup="handleSearch()">
+                    <button class="search-clear" id="search-clear" onclick="clearSearch()" style="display:none;">×</button>
+                    <span class="search-icon">🔍</span>
+                </div>
+
+                <div class="h-actions" id="header-actions">
+                    <button class="h-btn h-btn-icon" id="btn-dark-mode" onclick="toggleDarkMode()" title="Alternar modo escuro">🌙</button>
+                    <div class="h-sep"></div>
+                    <button class="h-btn btn-export" onclick="exportarDados()" title="Exportar backup CSV">↓ Exportar</button>
+                    <button class="h-btn btn-import" onclick="openImportModal()" title="Importar HQs de CSV/XLSX">↑ Importar</button>
+                    <button class="h-btn btn-sync" onclick="recalcularTodasHQs(event)" title="Recalcular edições de TODAS as HQs">↺ Recalcular</button>
+                    <div class="h-sep"></div>
+                    <button class="h-btn h-btn-primary" onclick="openModal()">+ Nova HQ</button>
+                </div>
+            </div>
+
+            <!-- Row 2: Filter Tabs + Stats -->
+            <div class="header-row2" id="filters-section">
+                <div class="filter-tabs-compact">
+                    <button class="filter-tab-compact active" data-filter="all" onclick="filterSeries('all', this)">Todas</button>
+                    <button class="filter-tab-compact" data-filter="para_ler" onclick="filterSeries('para_ler', this)">Para Ler</button>
+                    <button class="filter-tab-compact" data-filter="lendo" onclick="filterSeries('lendo', this)">Lendo</button>
+                    <button class="filter-tab-compact" data-filter="concluida" onclick="filterSeries('concluida', this)">Concluídas</button>
+                    <button class="filter-tab-compact" data-filter="saga" onclick="filterSeries('saga', this)">Sagas</button>
+                </div>
+                <div class="h-stats">
+                    <div class="h-stat"><span class="h-stat-val" id="stat-total">0</span><span class="h-stat-lbl">Total</span></div>
+                    <div class="h-stat"><span class="h-stat-val" id="stat-para-ler">0</span><span class="h-stat-lbl">Para Ler</span></div>
+                    <div class="h-stat"><span class="h-stat-val" id="stat-lendo">0</span><span class="h-stat-lbl">Lendo</span></div>
+                    <div class="h-stat"><span class="h-stat-val" id="stat-concluidas">0</span><span class="h-stat-lbl">Concluídas</span></div>
+                    <div class="h-stat"><span class="h-stat-val" id="stat-sagas">0</span><span class="h-stat-lbl">Sagas</span></div>
                 </div>
             </div>
         </div>
+    </header>
 
-        <!-- Main Content -->
-        <main class="main">
-            <div class="container">
-                <!-- Home View -->
-                <div id="home-view">
-                    <!-- FIX #13: Ordenação | FIX #20: Filtro por editora -->
-                    <div class="sort-controls" style="margin-bottom: 1rem; gap: 1rem;">
-                        <div style="display: flex; align-items: center; gap: 0.5rem;">
-                            <label for="sort-select">Ordenar:</label>
-                            <select class="sort-select" id="sort-select" onchange="sortSeries(this.value)">
-                                <option value="alpha">A → Z</option>
-                                <option value="alpha_desc">Z → A</option>
-                                <option value="progress">Mais lidas primeiro</option>
-                                <option value="progress_asc">Menos lidas primeiro</option>
-                                <option value="almost_done">Quase concluídas</option>
-                                <option value="publisher">Por editora</option>
-                                <option value="date_added">Mais recentes</option>
-                            </select>
-                        </div>
-                        <div class="publisher-filter-wrap">
-                            <select class="publisher-select" id="publisher-filter" onchange="filterByPublisher(this.value)">
-                                <option value="">📚 Todas as editoras</option>
-                            </select>
-                        </div>
-                    </div>
+    <!-- Mobile Menu -->
+    <div class="mobile-menu-overlay" id="mobile-menu-overlay" onclick="toggleMobileMenu()"></div>
+    <div class="mobile-menu" id="mobile-menu">
+        <div class="mobile-menu-header">
+            <h3>Menu</h3>
+            <button class="mobile-menu-close" onclick="toggleMobileMenu()">&times;</button>
+        </div>
+        <div class="mobile-menu-content">
+            <div class="mobile-menu-section">
+                <h4>Filtros</h4>
+                <div class="mobile-filters">
+                    <button class="mobile-filter-btn active" data-filter="all" onclick="filterSeriesFromMobile('all', this)">📚 Todas</button>
+                    <button class="mobile-filter-btn" data-filter="para_ler" onclick="filterSeriesFromMobile('para_ler', this)">📖 Para Ler</button>
+                    <button class="mobile-filter-btn" data-filter="lendo" onclick="filterSeriesFromMobile('lendo', this)">📗 Lendo</button>
+                    <button class="mobile-filter-btn" data-filter="concluida" onclick="filterSeriesFromMobile('concluida', this)">✅ Concluídas</button>
+                    <button class="mobile-filter-btn" data-filter="saga" onclick="filterSeriesFromMobile('saga', this)">🎭 Sagas</button>
+                </div>
+            </div>
+            <div class="mobile-menu-section">
+                <h4>Estatísticas</h4>
+                <div class="mobile-stats">
+                    <div class="mobile-stat"><span class="mobile-stat-label">Total</span><span class="mobile-stat-value" id="mobile-stat-total">0</span></div>
+                    <div class="mobile-stat"><span class="mobile-stat-label">Para Ler</span><span class="mobile-stat-value" id="mobile-stat-para-ler">0</span></div>
+                    <div class="mobile-stat"><span class="mobile-stat-label">Lendo</span><span class="mobile-stat-value" id="mobile-stat-lendo">0</span></div>
+                    <div class="mobile-stat"><span class="mobile-stat-label">Concluídas</span><span class="mobile-stat-value" id="mobile-stat-concluidas">0</span></div>
+                </div>
+            </div>
+        </div>
+    </div>
 
-                    <div class="comics-grid" id="series-grid"></div>
-                    
-                    <!-- Paginação -->
-                    <div class="pagination" id="pagination-controls" style="display: none;">
-                        <div class="pagination-info" id="pagination-info">
-                            Mostrando 1-12 de 100
-                        </div>
-                        <div class="pagination-buttons">
-                            <button class="btn-pagination" id="btn-first-page" onclick="goToFirstPage()" title="Primeira página">
-                                ⏮️
-                            </button>
-                            <button class="btn-pagination" id="btn-prev-page" onclick="goToPrevPage()" title="Página anterior">
-                                ◀️
-                            </button>
-                            <div class="page-numbers" id="page-numbers">
-                                <!-- Números de página serão inseridos aqui -->
-                            </div>
-                            <button class="btn-pagination" id="btn-next-page" onclick="goToNextPage()" title="Próxima página">
-                                ▶️
-                            </button>
-                            <button class="btn-pagination" id="btn-last-page" onclick="goToLastPage()" title="Última página">
-                                ⏭️
-                            </button>
-                        </div>
+    <!-- ===================== MAIN ===================== -->
+    <main class="main">
+        <div class="app-main">
+
+            <!-- HOME VIEW -->
+            <div id="home-view">
+                <!-- Toolbar -->
+                <div class="toolbar">
+                    <div class="toolbar-left">
+                        <span class="toolbar-label">Ordenar</span>
+                        <select class="toolbar-select sort-select" id="sort-select" onchange="sortSeries(this.value)">
+                            <option value="alpha">A → Z</option>
+                            <option value="alpha_desc">Z → A</option>
+                            <option value="progress">Mais lidas primeiro</option>
+                            <option value="progress_asc">Menos lidas primeiro</option>
+                            <option value="almost_done">Quase concluídas</option>
+                            <option value="publisher">Por editora</option>
+                            <option value="date_added">Mais recentes</option>
+                        </select>
+                        <select class="toolbar-select publisher-select" id="publisher-filter" onchange="filterByPublisher(this.value)">
+                            <option value="">Todas as editoras</option>
+                        </select>
                     </div>
-                    
-                    <div class="empty-state" id="empty-state">
-                        <div class="empty-icon">📚</div>
-                        <p>Nenhuma HQ encontrada</p>
+                    <span class="result-count" id="result-count-display"></span>
+                </div>
+
+                <!-- Grid -->
+                <div class="comics-grid" id="series-grid"></div>
+
+                <!-- Paginação -->
+                <div class="pagination" id="pagination-controls" style="display:none;">
+                    <div class="pagination-info" id="pagination-info">Mostrando 1-32 de 100</div>
+                    <div class="pagination-buttons">
+                        <button class="btn-pagination" id="btn-first-page" onclick="goToFirstPage()" title="Primeira página">⏮</button>
+                        <button class="btn-pagination" id="btn-prev-page" onclick="goToPrevPage()" title="Anterior">◀</button>
+                        <div class="page-numbers" id="page-numbers"></div>
+                        <button class="btn-pagination" id="btn-next-page" onclick="goToNextPage()" title="Próxima">▶</button>
+                        <button class="btn-pagination" id="btn-last-page" onclick="goToLastPage()" title="Última página">⏭</button>
                     </div>
                 </div>
 
-                <!-- Detail View -->
-                <div id="detail-view" style="display: none;">
-                    <!-- Layout: Capa + Detalhes (com edições dentro) -->
-                    <div class="detail-simple-layout">
-                        <!-- CAPA -->
-                        <div class="detail-cover-column">
-                            <img id="detail-cover" src="" alt="" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                <!-- Empty state -->
+                <div class="empty-state" id="empty-state">
+                    <div class="empty-icon">📚</div>
+                    <p>Nenhuma HQ encontrada</p>
+                </div>
+            </div>
+
+            <!-- DETAIL VIEW -->
+            <div id="detail-view" style="display:none;">
+                <div class="detail-simple-layout">
+
+                    <!-- Cover column -->
+                    <div class="detail-cover-column">
+                        <div class="detail-cover-bg" id="detail-cover-bg"></div>
+                        <div class="detail-cover-img-wrap">
+                            <img id="detail-cover" src="" alt=""
+                                 onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
                             <div class="detail-cover-placeholder" style="display:none;">📖</div>
                         </div>
-                        
-                        <!-- DETALHES + EDIÇÕES -->
-                        <div class="detail-content-column">
-                            <!-- Info -->
-                            <div class="detail-info-compact">
-                                <div class="info-header">
-                                    <h2 id="detail-title">Título da Série</h2>
-                                    
-                                    <!-- Stats de saga INLINE com título -->
-                                    <div id="saga-division-stats" class="saga-stats-inline" style="display: none;">
-                                        <div class="stat-saga-mini stat-saga-main">
-                                            <span class="stat-icon">📖</span>
-                                            <span class="stat-value" id="detail-main-issues">0</span>
-                                        </div>
-                                        <div class="stat-saga-mini stat-saga-tieins">
-                                            <span class="stat-icon">🔗</span>
-                                            <span class="stat-value" id="detail-tie-in-issues">0</span>
-                                        </div>
+                    </div>
+
+                    <!-- Content column -->
+                    <div class="detail-content-column">
+                        <div class="detail-info-compact">
+                            <!-- Header row -->
+                            <div class="info-header">
+                                <h2 id="detail-title">Título da Série</h2>
+                                <div id="saga-division-stats" class="saga-stats-inline" style="display:none;">
+                                    <div class="stat-mini-box stat-saga-main">
+                                        <span class="stat-icon">📖</span>
+                                        <span class="stat-value" id="detail-main-issues">0</span>
                                     </div>
-                                    
-                                    <div id="detail-type-badge"></div>
-                                </div>
-                                
-                                <!-- Meta + Stats na mesma linha -->
-                                <div class="info-meta-stats-row">
-                                    <div class="info-meta">
-                                        <span id="detail-author"></span>
-                                        <span id="detail-publisher"></span>
-                                        <!-- FIX #16: anos -->
-                                        <span id="detail-years" class="detail-year" style="display:none;"></span>
-                                    </div>
-                                    <div class="info-stats-mini">
-                                        <div class="stat-mini-box">
-                                            <span class="stat-icon">📖</span>
-                                            <span class="stat-label">Lendo</span>
-                                            <span class="stat-value" id="detail-reading">0</span>
-                                        </div>
-                                        <div class="stat-mini-box">
-                                            <span class="stat-icon">📥</span>
-                                            <span class="stat-label">Baixadas</span>
-                                            <span class="stat-value" id="detail-downloaded">0</span>
-                                        </div>
-                                        <div class="stat-mini-box">
-                                            <span class="stat-icon">📚</span>
-                                            <span class="stat-label">Total</span>
-                                            <span class="stat-value" id="detail-total">0</span>
-                                        </div>
-                                        <button class="btn-notes-mini" id="btn-view-notes" onclick="openNotesModal()" style="display: none;" title="Ver notas">
-                                            📝
-                                        </button>
-                                        <button class="btn-notes-mini" id="btn-undo" onclick="desfazerUltimaAcao()" title="Desfazer última ação" disabled>
-                                            ↶
-                                        </button>
+                                    <div class="stat-mini-box stat-saga-tieins">
+                                        <span class="stat-icon">🔗</span>
+                                        <span class="stat-value" id="detail-tie-in-issues">0</span>
                                     </div>
                                 </div>
-                                
-                                <!-- Edições da Saga (só aparece para sagas) -->
-                                <div id="saga-editions-display" class="saga-editions-box" style="display: none;">
-                                    <h4>📜 Edições da Saga:</h4>
-                                    <div id="saga-editions-list"></div>
+                                <div id="detail-type-badge"></div>
+                            </div>
+
+                            <!-- Meta + stats row -->
+                            <div class="info-meta-stats-row">
+                                <div class="info-meta">
+                                    <span id="detail-author"></span>
+                                    <span id="detail-publisher"></span>
+                                    <span id="detail-years" class="detail-year" style="display:none;"></span>
                                 </div>
-                                
-                                <div class="info-progress">
-                                    <span class="progress-text" id="detail-progress">0/0 edições (0%)</span>
-                                    <div class="progress-bar-container">
-                                        <div class="progress-bar" id="detail-progress-bar" style="width: 0%"></div>
+                                <div class="detail-stats">
+                                    <div class="stat-chip">
+                                        <span class="stat-chip-ico">📖</span>
+                                        <span class="stat-chip-lbl">Lendo</span>
+                                        <span class="stat-chip-val" id="detail-reading">0</span>
                                     </div>
-                                </div>
-                                
-                                <div class="info-actions">
-                                    <button class="btn-action-detail" onclick="aumentarTotalIssues()">📚 +1 Total</button>
-                                    <button class="btn-action-detail btn-success" onclick="openAddIssueModal()">➕ Baixada</button>
-                                    <button class="btn-action-detail btn-secondary" onclick="recalcularEdicoes(event)">🔄 Recalc.</button>
-                                    <button class="btn-action-detail btn-warning" onclick="editarSerieAtual()">✏️ Editar</button>
+                                    <div class="stat-chip">
+                                        <span class="stat-chip-ico">📥</span>
+                                        <span class="stat-chip-lbl">Baixadas</span>
+                                        <span class="stat-chip-val" id="detail-downloaded">0</span>
+                                    </div>
+                                    <div class="stat-chip">
+                                        <span class="stat-chip-ico">📚</span>
+                                        <span class="stat-chip-lbl">Total</span>
+                                        <span class="stat-chip-val" id="detail-total">0</span>
+                                    </div>
+                                    <button class="stat-chip-btn btn-notes-mini" id="btn-view-notes" onclick="openNotesModal()" style="display:none;" title="Ver notas">📝</button>
+                                    <button class="stat-chip-btn btn-notes-mini" id="btn-undo" onclick="desfazerUltimaAcao()" title="Desfazer última ação" disabled>↶</button>
                                 </div>
                             </div>
-                            
-                            <!-- Edições (dentro da mesma coluna) -->
-                            <div class="detail-issues-inline">
-                                <div class="issues-inline-header">
-                                    <h3>Edições</h3>
-                                    <div class="issues-header-actions">
-                                        <button class="btn-sync-inline btn-mark-all" onclick="marcarTodasComoLidas()" title="Marcar todas como lidas">
-                                            ✅ Todas Lidas
-                                        </button>
-                                        <button class="btn-sync-inline btn-mark-all" onclick="marcarTodasComoNaoLidas()" title="Marcar todas como não lidas">
-                                            📖 Todas Não Lidas
-                                        </button>
-                                        <button class="btn-sync-inline btn-mark-all btn-mark-not-downloaded" onclick="marcarTodasComoNaoBaixadas()" title="Marcar todas como não baixadas">
-                                            ❌ Todas Não Baixadas
-                                        </button>
-                                        <button class="btn-sync-inline" onclick="sincronizarEdicoesAutomaticamente(event)">
-                                            🔄 Sincronizar
-                                        </button>
-                                    </div>
+
+                            <!-- Saga editions -->
+                            <div id="saga-editions-display" class="saga-editions-box" style="display:none;">
+                                <h4>📜 Edições da Saga:</h4>
+                                <div id="saga-editions-list"></div>
+                            </div>
+
+                            <!-- Progress -->
+                            <div class="detail-progress info-progress">
+                                <div class="prog-header">
+                                    <span class="prog-label progress-text" id="detail-progress">0/0 edições (0%)</span>
+                                    <span class="prog-pct" id="detail-progress-pct">0%</span>
                                 </div>
-                                <div class="issues-grid-inline" id="issues-list"></div>
-                                <div class="empty-issues-inline" id="empty-issues" style="display: none;">
-                                    <span>📖</span>
-                                    <p>Nenhuma edição</p>
+                                <div class="prog-bar-wrap progress-bar-container">
+                                    <div class="prog-bar progress-bar" id="detail-progress-bar" style="width:0%"></div>
                                 </div>
+                            </div>
+
+                            <!-- Action buttons -->
+                            <div class="detail-actions info-actions">
+                                <button class="d-btn d-btn-amber btn-action-detail" onclick="aumentarTotalIssues()">📚 +1 Total</button>
+                                <button class="d-btn d-btn-emerald btn-action-detail btn-success" onclick="openAddIssueModal()">➕ Baixada</button>
+                                <button class="d-btn d-btn-sky btn-action-detail btn-secondary" onclick="recalcularEdicoes(event)">🔄 Recalc.</button>
+                                <button class="d-btn d-btn-coral btn-action-detail btn-warning" onclick="editarSerieAtual()">✏️ Editar</button>
+                            </div>
+                        </div>
+
+                        <!-- Issues -->
+                        <div class="detail-issues detail-issues-inline">
+                            <div class="issues-header issues-inline-header">
+                                <span class="issues-title">Edições</span>
+                                <div class="issues-actions issues-header-actions">
+                                    <button class="i-btn ib-g btn-sync-inline btn-mark-all" onclick="marcarTodasComoLidas()">✓ Todas Lidas</button>
+                                    <button class="i-btn ib-a btn-sync-inline btn-mark-all" onclick="marcarTodasComoNaoLidas()">↩ Não Lidas</button>
+                                    <button class="i-btn ib-r btn-sync-inline btn-mark-all btn-mark-not-downloaded" onclick="marcarTodasComoNaoBaixadas()">✕ Não Baixadas</button>
+                                    <button class="i-btn ib-b btn-sync-inline" onclick="sincronizarEdicoesAutomaticamente(event)">↺ Sincronizar</button>
+                                </div>
+                            </div>
+                            <div class="issues-grid issues-grid-inline" id="issues-list"></div>
+                            <div class="empty-issues-inline" id="empty-issues" style="display:none;">
+                                <span>📖</span><p>Nenhuma edição</p>
                             </div>
                         </div>
                     </div>
                 </div>
             </div>
-        </main>
-    </div>
+
+        </div><!-- /.app-main -->
+    </main>
+
+    <!-- ===================== MODALS ===================== -->
 
     <!-- Modal Add/Edit Série -->
     <div class="modal" id="series-modal">
         <div class="modal-overlay" onclick="closeModal()"></div>
-        <div class="modal-content">
-            <div class="modal-header">
-                <h2 id="modal-title">Nova HQ</h2>
-                <button class="modal-close" onclick="closeModal()">&times;</button>
+        <div class="modal-content modal-box">
+            <div class="modal-header modal-hdr">
+                <span class="modal-title" id="modal-title">Nova HQ</span>
+                <button class="modal-close" onclick="closeModal()">✕</button>
             </div>
             <form class="modal-body" id="series-form" onsubmit="submitSeriesForm(event)">
                 <input type="hidden" id="series-id">
-                
-                <div class="form-group">
+
+                <div class="form-group form-grp">
                     <label for="title">Título *</label>
-                    <input type="text" id="title" required>
+                    <input type="text" id="title" required placeholder="Ex: Absolute Batman">
                 </div>
 
                 <div class="form-row">
-                    <div class="form-group">
+                    <div class="form-group form-grp">
                         <label for="author">Autor</label>
-                        <input type="text" id="author">
+                        <input type="text" id="author" placeholder="Ex: Scott Snyder">
                     </div>
-                    <div class="form-group">
+                    <div class="form-group form-grp">
                         <label for="publisher">Editora</label>
-                        <input type="text" id="publisher">
+                        <input type="text" id="publisher" placeholder="Ex: DC Comics">
                     </div>
                 </div>
 
                 <div class="form-row">
-                    <div class="form-group" id="series-total-field">
+                    <div class="form-group form-grp" id="series-total-field">
                         <label for="total_issues">Total de Edições Publicadas</label>
-                        <input type="number" id="total_issues" min="0" value="0">
-                        <small style="color: var(--color-text-secondary); font-size: 0.8rem;">
-                            💡 Quantas edições a EDITORA já publicou
-                        </small>
+                        <input type="number" id="total_issues" min="0" value="0" placeholder="0">
+                        <small>💡 Quantas edições a editora já publicou</small>
                     </div>
                 </div>
-                
-                <!-- Campos específicos para divisão de edições em SAGAS -->
-                <div id="saga-issues-division" style="display: none;">
+
+                <!-- Saga division fields -->
+                <div id="saga-issues-division" style="display:none;">
                     <div class="form-row">
-                        <div class="form-group">
+                        <div class="form-group form-grp">
                             <label for="main_issues">📖 Edições Principais</label>
                             <input type="number" id="main_issues" min="0" value="0" onchange="updateSagaTotal()">
-                            <small style="color: var(--color-text-secondary); font-size: 0.8rem;">
-                                💡 Evento principal (ex: Civil War #1-7)
-                            </small>
+                            <small>💡 Evento principal (ex: Civil War #1-7)</small>
                         </div>
-                        <div class="form-group">
+                        <div class="form-group form-grp">
                             <label for="tie_in_issues">🔗 Edições Tie-ins</label>
                             <input type="number" id="tie_in_issues" min="0" value="0" onchange="updateSagaTotal()">
-                            <small style="color: var(--color-text-secondary); font-size: 0.8rem;">
-                                💡 Histórias paralelas (ex: Amazing Spider-Man)
-                            </small>
+                            <small>💡 Histórias paralelas</small>
                         </div>
                     </div>
                     <div class="saga-total-display">
@@ -383,71 +304,58 @@
                     </div>
                 </div>
 
-                <div class="form-group">
+                <div class="form-group form-grp">
                     <label for="series_type">Tipo *</label>
                     <select id="series_type" onchange="toggleSagaFields()">
-                        <option value="em_andamento">Série - Em Andamento</option>
-                        <option value="finalizada">Série - Finalizada</option>
-                        <option value="lancamento">Série - Lançamento</option>
+                        <option value="em_andamento">Série — Em Andamento</option>
+                        <option value="finalizada">Série — Finalizada</option>
+                        <option value="lancamento">Série — Lançamento</option>
                         <option value="edicao_especial">Edição Especial</option>
                         <option value="saga">🎭 Saga / Arco</option>
                     </select>
                 </div>
-                
-                <!-- Campo específico para SAGAS -->
-                <div class="form-group" id="saga-editions-field" style="display: none;">
+
+                <div class="form-group form-grp" id="saga-editions-field" style="display:none;">
                     <label for="saga_editions">Edições da Saga</label>
-                    <textarea id="saga_editions" rows="4" placeholder="Liste as edições da saga, uma por linha:
-Ex:
-Batman #45
-Superman #30
-Justice League #15"></textarea>
-                    <small style="color: var(--color-text-secondary); font-size: 0.8rem;">
-                        💡 Liste os títulos e números que compõem esta saga
-                    </small>
+                    <textarea id="saga_editions" rows="4" placeholder="Liste as edições da saga, uma por linha:&#10;Ex:&#10;Batman #45&#10;Superman #30"></textarea>
+                    <small>💡 Liste os títulos e números que compõem esta saga</small>
                 </div>
 
-                <div class="form-group">
+                <div class="form-group form-grp">
                     <label class="checkbox-label">
                         <input type="checkbox" id="is_completed">
                         <span id="completed-label-text">Série finalizada (não sairão mais edições)</span>
                     </label>
                 </div>
 
-                <div class="form-group">
+                <div class="form-group form-grp">
                     <label for="cover_url">URL da Capa</label>
-                    <input type="url" id="cover_url" placeholder="https://..." oninput="previewCoverUrl()">
-                    <!-- FIX #19: preview em tempo real -->
+                    <input type="url" id="cover_url" placeholder="https://…" oninput="previewCoverUrl()">
                     <div class="cover-url-preview" id="cover-url-preview">
                         <img id="cover-url-preview-img" src="" alt="Preview da capa">
                     </div>
                     <span class="cover-url-warning" id="cover-url-warning"></span>
                 </div>
 
-                <!-- FIX #16: Campos de ano -->
                 <div class="form-row">
-                    <div class="form-group">
+                    <div class="form-group form-grp">
                         <label for="year_start">Ano de Início</label>
                         <input type="number" id="year_start" min="1900" max="2100" placeholder="Ex: 1986">
                     </div>
-                    <div class="form-group">
+                    <div class="form-group form-grp">
                         <label for="year_end">Ano de Conclusão</label>
                         <input type="number" id="year_end" min="1900" max="2100" placeholder="Ex: 1987">
                     </div>
                 </div>
 
-                <div class="form-group">
+                <div class="form-group form-grp">
                     <label for="notes">Notas</label>
                     <textarea id="notes" rows="3"></textarea>
                 </div>
 
-                <div class="form-actions">
-                    <button type="button" class="btn-secondary" onclick="closeModal()">
-                        Cancelar
-                    </button>
-                    <button type="submit" class="btn-primary">
-                        Salvar
-                    </button>
+                <div class="form-actions modal-foot">
+                    <button type="button" class="m-btn m-btn-cancel btn-secondary" onclick="closeModal()">Cancelar</button>
+                    <button type="submit" class="m-btn m-btn-save btn-primary">Salvar HQ</button>
                 </div>
             </form>
         </div>
@@ -456,48 +364,40 @@ Justice League #15"></textarea>
     <!-- Modal Add Edição BAIXADA -->
     <div class="modal" id="issue-modal">
         <div class="modal-overlay" onclick="closeIssueModal()"></div>
-        <div class="modal-content modal-small">
-            <div class="modal-header">
-                <h2>Adicionar Edição BAIXADA</h2>
-                <button class="modal-close" onclick="closeIssueModal()">&times;</button>
+        <div class="modal-content modal-box modal-small">
+            <div class="modal-header modal-hdr">
+                <span class="modal-title">Adicionar Edição BAIXADA</span>
+                <button class="modal-close" onclick="closeIssueModal()">✕</button>
             </div>
             <div class="modal-body">
                 <form id="issue-form" onsubmit="submitIssueForm(event)">
-                    <div class="form-group">
+                    <div class="form-group form-grp">
                         <label for="issue_number">Número da Edição *</label>
-                        <input type="number" id="issue_number" min="1" required>
-                        <small style="color: var(--color-text-secondary); font-size: 0.8rem;">
-                            💡 Qual edição você BAIXOU?
-                        </small>
+                        <input type="number" id="issue_number" min="1" required placeholder="Ex: 5">
+                        <small>💡 Qual edição você BAIXOU?</small>
                     </div>
-
-                    <div class="form-group">
+                    <div class="form-group form-grp">
                         <label class="checkbox-label">
                             <input type="checkbox" id="is_read">
                             <span>Marcar como lida</span>
                         </label>
                     </div>
-
-                    <div class="form-actions">
-                        <button type="button" class="btn-secondary" onclick="closeIssueModal()">
-                            Cancelar
-                        </button>
-                        <button type="submit" class="btn-primary">
-                            Adicionar
-                        </button>
+                    <div class="form-actions modal-foot">
+                        <button type="button" class="m-btn m-btn-cancel btn-secondary" onclick="closeIssueModal()">Cancelar</button>
+                        <button type="submit" class="m-btn m-btn-save btn-primary">Adicionar</button>
                     </div>
                 </form>
             </div>
         </div>
     </div>
 
-    <!-- Modal Visualizar Notas -->
+    <!-- Modal Notas -->
     <div class="modal" id="notes-modal">
         <div class="modal-overlay" onclick="closeNotesModal()"></div>
-        <div class="modal-content modal-small">
-            <div class="modal-header">
-                <h2>📝 Notas</h2>
-                <button class="modal-close" onclick="closeNotesModal()">&times;</button>
+        <div class="modal-content modal-box modal-small">
+            <div class="modal-header modal-hdr">
+                <span class="modal-title">📝 Notas</span>
+                <button class="modal-close" onclick="closeNotesModal()">✕</button>
             </div>
             <div class="modal-body">
                 <div class="notes-display" id="notes-display-content"></div>
@@ -505,26 +405,34 @@ Justice League #15"></textarea>
         </div>
     </div>
 
-    <!-- FIX #18: Modal de Importação -->
+    <!-- Modal Importação -->
     <div class="import-modal-overlay" id="import-modal" style="display:none;" onclick="if(event.target===this)closeImportModal()">
-        <div class="import-modal-content">
-            <h3>⬆️ Importar HQs</h3>
-            <p>Importe um arquivo <strong>CSV</strong> ou <strong>XLSX</strong> com suas HQs.<br>
-            Colunas aceitas: <code>title</code>, <code>author</code>, <code>publisher</code>, <code>series_type</code>, <code>total_issues</code>, <code>read_issues</code>, <code>downloaded_issues</code>, <code>year_start</code>, <code>year_end</code>, <code>cover_url</code>, <code>notes</code>.
-            </p>
-            <input type="file" class="import-file-input" id="import-file" accept=".csv,.xlsx,.xls">
-            <div class="import-modal-actions">
-                <button class="btn-secondary" onclick="closeImportModal()">Cancelar</button>
-                <button class="btn-primary" id="btn-import-submit" onclick="submitImport()">Importar</button>
+        <div class="import-modal-content modal-box">
+            <div class="modal-hdr" style="padding:1.25rem 1.5rem;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;background:var(--ink-3);">
+                <span class="modal-title">↑ Importar HQs</span>
+                <button class="modal-close" onclick="closeImportModal()">✕</button>
+            </div>
+            <div class="modal-body">
+                <p style="font-size:.85rem;color:var(--muted);margin-bottom:.75rem;">
+                    Importe um arquivo <strong style="color:var(--text)">CSV</strong> ou <strong style="color:var(--text)">XLSX</strong> com suas HQs.<br>
+                    Colunas aceitas: <code>title</code>, <code>author</code>, <code>publisher</code>, <code>series_type</code>, <code>total_issues</code>, <code>read_issues</code>, <code>downloaded_issues</code>, <code>year_start</code>, <code>year_end</code>, <code>cover_url</code>, <code>notes</code>.
+                </p>
+                <div class="form-grp">
+                    <label>Arquivo</label>
+                    <input type="file" class="import-file-input" id="import-file" accept=".csv,.xlsx,.xls">
+                </div>
+            </div>
+            <div class="modal-foot">
+                <button class="m-btn m-btn-cancel btn-secondary" onclick="closeImportModal()">Cancelar</button>
+                <button class="m-btn m-btn-save btn-primary" id="btn-import-submit" onclick="submitImport()">Importar</button>
             </div>
         </div>
     </div>
 
-    <!-- Botão Voltar ao Topo -->
-    <button class="scroll-to-top" id="scroll-to-top" onclick="scrollToTop()" title="Voltar ao topo">
-        ⬆️
-    </button>
+    <!-- Scroll to top -->
+    <button class="scroll-to-top" id="scroll-to-top" onclick="scrollToTop()" title="Voltar ao topo">↑</button>
 
-    <script src="script.js"></script>
+</div><!-- /.app -->
+<script src="script.js"></script>
 </body>
 </html>
