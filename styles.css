@@ -1045,12 +1045,14 @@ body.dark-mode .scroll-to-top { color: #000; }
   .cover-prog-pct { font-size: .55rem; margin-bottom: .22rem; }
 
   /* Detail — stack vertically */
-  .detail-simple-layout { flex-direction: column; min-height: unset; }
+  .detail-simple-layout { flex-direction: column; min-height: unset; height: auto; }
   .detail-cover-column {
-    width: 100%; min-width: unset; height: 260px;
+    width: 100%; min-width: unset;
+    height: auto;
+    aspect-ratio: 2 / 3;
     border-radius: var(--r-lg) var(--r-lg) 0 0;
   }
-  .detail-cover-img-wrap { inset: .85rem; }
+  .detail-cover-img-wrap { inset: 1rem; }
   .detail-content-column {
     border-radius: 0 0 var(--r-lg) var(--r-lg);
     border-left: 1px solid var(--border); border-top: none;
@@ -1121,7 +1123,7 @@ body.dark-mode .scroll-to-top { color: #000; }
   .toolbar-select, .sort-select, .publisher-select { width: 100%; flex: unset; }
 
   /* Detail */
-  .detail-cover-column { height: 210px; }
+  .detail-cover-column { aspect-ratio: 2 / 3; height: auto; }
 
   /* Pagination */
   .btn-pagination, .page-num { padding: .3rem .5rem; font-size: .7rem; min-width: 28px; }
