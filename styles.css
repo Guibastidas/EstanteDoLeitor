@@ -971,26 +971,44 @@ body.dark-mode .scroll-to-top { color: #000; }
 
 @media(max-width: 768px) {
   /* Header */
-  .header-row1 { height: 50px; gap: .4rem; }
-  .header-row2 { height: auto; padding: .35rem 0; }
-  .logo { font-size: 1.25rem; }
-  .search-wrap { max-width: unset; }
+  .header-inner { padding: 0 1rem; }
+  .header-row1 { height: 50px; gap: .35rem; }
+  .header-row2 { height: auto; padding: .3rem 0; }
+  .logo { font-size: 1.2rem; }
+  .search-wrap { max-width: unset; flex: 1; min-width: 0; }
+  .search-wrap input { font-size: .78rem; padding: .4rem 1.8rem .4rem .7rem; }
   .h-actions .btn-import { display: none; }
   .h-stats { display: none; }
   .filter-tabs-compact {
-    gap: .08rem; overflow-x: auto; padding-bottom: 2px;
-    -webkit-overflow-scrolling: touch;
-    scrollbar-width: none;
+    gap: .08rem; overflow-x: auto; padding-bottom: 3px;
+    -webkit-overflow-scrolling: touch; scrollbar-width: none; flex: 1;
   }
   .filter-tabs-compact::-webkit-scrollbar { display: none; }
-  .filter-tab-compact { padding: .18rem .6rem; font-size: .7rem; flex-shrink: 0; }
+  .filter-tab-compact { padding: .2rem .65rem; font-size: .71rem; flex-shrink: 0; }
 
   /* Main */
-  .app-main { padding: .85rem .9rem; }
+  .app-main { padding: .75rem .85rem; }
 
   /* Toolbar */
-  .toolbar { margin-bottom: .8rem; }
-  .toolbar-select, .sort-select, .publisher-select { font-size: .74rem; padding: .3rem .5rem; }
+  .toolbar { flex-direction: column; align-items: stretch; gap: .5rem; margin-bottom: .85rem; }
+  .toolbar-left { flex-wrap: nowrap; gap: .4rem; }
+  .toolbar-label { display: none; }
+  .toolbar-select, .sort-select, .publisher-select {
+    font-size: .76rem; padding: .38rem .5rem; flex: 1; min-width: 0;
+  }
+  .result-count { font-size: .72rem; text-align: right; }
+
+  /* Card info */
+  .comic-info, .card-info { padding: .5rem .6rem .6rem; }
+  .comic-title, .card-title { font-size: .76rem; margin-bottom: .2rem; }
+  .comic-author, .comic-publisher, .comic-year, .card-pub { font-size: .64rem; margin-bottom: .12rem; }
+  .comic-stats { font-size: .62rem; gap: .3rem; margin-bottom: .25rem; }
+  .comic-status { font-size: .58rem; padding: .15rem .4rem; }
+  .btn-icon-small, .card-btn { width: 22px; height: 22px; font-size: .65rem; }
+
+  /* Cover progress footer */
+  .cover-progress-footer { padding: 1.5rem .55rem .45rem; }
+  .cover-prog-pct { font-size: .55rem; margin-bottom: .22rem; }
 
   /* Detail — stack vertically */
   .detail-simple-layout { flex-direction: column; min-height: unset; }
@@ -1013,15 +1031,9 @@ body.dark-mode .scroll-to-top { color: #000; }
   }
 
   /* Issues */
-  .detail-issues, .detail-issues-inline {
-    padding: .85rem 1rem; overflow: visible; flex: unset;
-  }
-  .issues-header, .issues-inline-header {
-    flex-direction: column; align-items: flex-start; gap: .4rem;
-  }
-  .issues-grid, .issues-grid-inline {
-    overflow: visible; max-height: unset; flex: unset;
-  }
+  .detail-issues, .detail-issues-inline { padding: .85rem 1rem; overflow: visible; flex: unset; }
+  .issues-header, .issues-inline-header { flex-direction: column; align-items: flex-start; gap: .4rem; }
+  .issues-grid, .issues-grid-inline { overflow: visible; max-height: unset; flex: unset; }
   .issue-badge, .iss-badge { width: 48px; min-height: 46px; }
 
   /* Modal — slide up from bottom */
@@ -1033,19 +1045,53 @@ body.dark-mode .scroll-to-top { color: #000; }
   .form-row { grid-template-columns: 1fr; gap: .55rem; }
 
   /* Pagination */
-  .pagination { flex-direction: column; align-items: flex-start; gap: .55rem; }
+  .pagination { flex-direction: column; align-items: center; gap: .55rem; padding: .7rem .85rem; }
+  .pagination-info { font-size: .72rem; }
+  .pagination-buttons { flex-wrap: wrap; justify-content: center; gap: .25rem; }
+  .page-numbers { flex-wrap: wrap; justify-content: center; gap: .2rem; }
+  .btn-pagination, .page-num { padding: .38rem .6rem; font-size: .74rem; min-width: 32px; text-align: center; }
 }
 
 @media(max-width: 480px) {
-  .header-row1 { gap: .3rem; }
-  .logo { font-size: 1.1rem; letter-spacing: 1.5px; }
-  .h-btn-icon { padding: .3rem .38rem; }
-  /* Mostrar só ícone e nova HQ no mobile pequeno */
+  /* Header */
+  .header-inner { padding: 0 .75rem; }
+  .header-row1 { gap: .25rem; }
+  .logo { font-size: 1rem; letter-spacing: 1.5px; }
+  .h-btn-icon { padding: .3rem .38rem; font-size: .8rem; }
   .h-btn:not(.h-btn-primary):not(.h-btn-icon):not(.h-btn-back) { display: none; }
   .h-sep { display: none; }
-  .app-main { padding: .7rem .65rem; }
-  .comics-grid { gap: .4rem; }
+  .search-wrap input { font-size: .75rem; }
+
+  /* Main */
+  .app-main { padding: .6rem .6rem; }
+
+  /* Grid */
+  .comics-grid { gap: .35rem; }
+
+  /* Card — compacto em 2 colunas */
+  .comic-info, .card-info { padding: .42rem .5rem .52rem; }
+  .comic-title, .card-title { font-size: .72rem; }
+  .comic-author, .comic-publisher, .comic-year, .card-pub { font-size: .6rem; margin-bottom: .1rem; }
+  .comic-stats { display: none; }
+  .comic-status-row, .card-bottom { margin-top: .3rem; }
+  .comic-status { font-size: .55rem; padding: .12rem .35rem; }
+  .btn-icon-small, .card-btn { width: 20px; height: 20px; font-size: .6rem; }
+  .series-type-badge { font-size: .52rem; padding: .12rem .38rem; }
+
+  /* Cover progress footer */
+  .cover-progress-footer { padding: 1.2rem .5rem .4rem; }
+  .cover-prog-pct { font-size: .52rem; }
+
+  /* Toolbar — selects empilhados */
+  .toolbar-left { flex-direction: column; align-items: stretch; }
+  .toolbar-select, .sort-select, .publisher-select { width: 100%; flex: unset; }
+
+  /* Detail */
   .detail-cover-column { height: 210px; }
+
+  /* Pagination */
+  .btn-pagination, .page-num { padding: .3rem .5rem; font-size: .7rem; min-width: 28px; }
+  .page-ellipsis { font-size: .7rem; padding: .3rem .15rem; }
 }
 
 /* =====================================================
