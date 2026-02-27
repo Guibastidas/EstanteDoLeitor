@@ -128,6 +128,8 @@ body {
 
 /* Desktop: hide mobile-only dark mode button from h-actions on small screens */
 .btn-dark-mobile { display: none; }
+
+.logo {
   font-family: 'Bebas Neue', sans-serif;
   font-size: 1.5rem;
   color: var(--amber);
@@ -160,7 +162,8 @@ body {
 .search-wrap input::placeholder { color: var(--dimmed); }
 .search-icon {
   position: absolute; right: .65rem; top: 50%; transform: translateY(-50%);
-  color: var(--dimmed); font-size: .8rem; pointer-events: none;
+  color: var(--dimmed); font-size: .85rem; pointer-events: none;
+  z-index: 2; line-height: 1;
 }
 .search-clear {
   position: absolute; right: 1.9rem; top: 50%; transform: translateY(-50%);
