@@ -6,3 +6,4 @@ openpyxl==3.1.2
 psycopg2-binary==2.9.9
 sqlalchemy==2.0.23
 python-multipart==0.0.6
+Pillow==10.1.0

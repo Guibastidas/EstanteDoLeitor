@@ -15,7 +15,6 @@ from fastapi import FastAPI, HTTPException, Query, Depends, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, Response, StreamingResponse
 from pydantic import BaseModel
-# FIX #5: importar text para migrations + case para queries eficientes
 from sqlalchemy import create_engine, Column, Integer, String, Boolean, Text, ForeignKey, func, case, text
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, Session, relationship
@@ -70,14 +69,11 @@ class SeriesDB(Base):
     series_type = Column(String(50), default='em_andamento')
     cover_url = Column(Text)
     notes = Column(Text)
-    # FIX #5: mantido como String para compatibilidade com dados existentes
     date_added = Column(String(50), nullable=False)
     date_updated = Column(String(50))
-    # FIX #4: campo saga_editions adicionado (migration automática no startup)
     saga_editions = Column(Text)
     main_issues = Column(Integer, default=0)
     tie_in_issues = Column(Integer, default=0)
-    # FIX #16: campos de ano (migration automática no startup)
     year_start = Column(Integer)
     year_end = Column(Integer)
     issues = relationship("IssueDB", back_populates="series", cascade="all, delete-orphan")
@@ -99,10 +95,6 @@ class IssueDB(Base):
 # ==================== MIGRATIONS AUTOMÁTICAS ====================
 
 def run_migrations():
-    """
-    FIX #4 + #16: Adiciona colunas novas a tabelas existentes sem derrubar dados.
-    Funciona tanto no SQLite (dev) quanto no PostgreSQL (Railway).
-    """
     is_sqlite = DATABASE_URL.startswith("sqlite")
     migrations = [
         ("series", "saga_editions", "TEXT"),
@@ -119,7 +111,7 @@ def run_migrations():
                 conn.commit()
                 print(f"✅ Migration: coluna '{column}' adicionada à tabela '{table}'")
             except Exception:
-                pass  # coluna já existe — normal
+                pass
 
 
 print("📝 Verificando tabelas...")
@@ -144,11 +136,9 @@ class SeriesCreate(BaseModel):
     series_type: str = 'em_andamento'
     cover_url: Optional[str] = None
     notes: Optional[str] = None
-    # FIX #4
     saga_editions: Optional[str] = None
     main_issues: int = 0
     tie_in_issues: int = 0
-    # FIX #16
     year_start: Optional[int] = None
     year_end: Optional[int] = None
 
@@ -169,14 +159,14 @@ class SeriesResponse(BaseModel):
     series_type: str
     cover_url: Optional[str]
     notes: Optional[str]
-    saga_editions: Optional[str]  # FIX #4
+    saga_editions: Optional[str]
     status: str
     date_added: str
     date_updated: Optional[str]
     main_issues: int
     tie_in_issues: int
-    year_start: Optional[int]   # FIX #16
-    year_end: Optional[int]     # FIX #16
+    year_start: Optional[int]
+    year_end: Optional[int]
 
     class Config:
         from_attributes = True
@@ -192,12 +182,10 @@ class IssueUpdate(BaseModel):
     is_read: bool
 
 
-# FIX #2: modelo para bulk update de leitura
 class BulkReadUpdate(BaseModel):
     is_read: bool
 
 
-# FIX #1: modelo para criação em lote de edições
 class BulkIssueCreate(BaseModel):
     total_issues: int
     read_issues: int = 0
@@ -239,8 +227,6 @@ app = FastAPI(
     lifespan=lifespan
 )
 
-# FIX #6: CORS corrigido — allow_credentials=False quando allow_origins=["*"]
-# A combinação credentials=True + origins=["*"] viola a spec do CORS
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -272,12 +258,6 @@ def calculate_status(read_issues: int, total_issues: int) -> str:
 
 
 def series_to_response(series: SeriesDB, dl: int = None, rd: int = None) -> dict:
-    """
-    FIX #22: aceita contadores pré-calculados para evitar N+1.
-    Abordagem híbrida:
-    - Se HÁ issues cadastradas (dl > 0): usa valores calculados das issues
-    - Se NÃO HÁ issues (dl == 0): usa valores do banco (importados da planilha)
-    """
     if dl is not None:
         downloaded_issues = dl if dl > 0 else series.downloaded_issues
         read_issues       = rd if dl > 0 else series.read_issues
@@ -297,22 +277,18 @@ def series_to_response(series: SeriesDB, dl: int = None, rd: int = None) -> dict
         "series_type":      series.series_type,
         "cover_url":        series.cover_url,
         "notes":            series.notes,
-        "saga_editions":    series.saga_editions,   # FIX #4
+        "saga_editions":    series.saga_editions,
         "status":           calculate_status(read_issues, series.total_issues),
         "date_added":       series.date_added,
         "date_updated":     series.date_updated,
         "main_issues":      series.main_issues  or 0,
         "tie_in_issues":    series.tie_in_issues or 0,
-        "year_start":       series.year_start,      # FIX #16
-        "year_end":         series.year_end,        # FIX #16
+        "year_start":       series.year_start,
+        "year_end":         series.year_end,
     }
 
 
 def get_issue_counts(db: Session, series_ids: list) -> dict:
-    """
-    FIX #22: carrega contadores de TODAS as séries em UMA única query.
-    Retorna dict {series_id: (downloaded, read)}
-    """
     if not series_ids:
         return {}
     rows = db.query(
@@ -352,6 +328,60 @@ async def get_script_extensions():
         raise HTTPException(status_code=404, detail="JS extensions not found")
 
 
+# ==================== APPLE TOUCH ICON (PWA) ====================
+
+@app.get("/apple-touch-icon.png")
+@app.get("/apple-touch-icon-precomposed.png")
+async def apple_touch_icon():
+    """
+    Gera o ícone 180x180 para iOS/Safari "Adicionar à Tela de Início".
+    Usa Pillow para desenhar o ícone em memória, sem precisar de arquivo estático.
+    """
+    try:
+        from PIL import Image, ImageDraw
+
+        size   = 180
+        radius = 38
+
+        img  = Image.new("RGBA", (size, size), (0, 0, 0, 0))
+        draw = ImageDraw.Draw(img)
+
+        # Fundo âmbar com cantos arredondados
+        draw.rounded_rectangle([0, 0, size - 1, size - 1], radius=radius, fill="#d4860a")
+
+        # Livro — três "páginas" empilhadas para dar profundidade
+        draw.rounded_rectangle([28, 26, 84, 142], radius=6, fill="#e8dcc8")   # sombra/costas
+        draw.rounded_rectangle([36, 26, 92, 142], radius=6, fill="#f5ede0")   # página do meio
+        draw.rounded_rectangle([44, 26, 148, 142], radius=6, fill="#ffffff")  # página da frente
+
+        # Lombada
+        draw.rectangle([44, 26, 52, 142], fill="#ddd0ba")
+
+        # Título (linha dourada grossa)
+        draw.rounded_rectangle([62, 50, 134, 62], radius=4, fill="#d4860a")
+
+        # Linhas de texto
+        for i, y in enumerate([76, 88, 100, 112]):
+            w = 130 if i % 2 == 0 else 118
+            draw.rounded_rectangle([62, y, w, y + 6], radius=3, fill="#c8b89a")
+
+        buf = io.BytesIO()
+        img.save(buf, format="PNG", optimize=True)
+        buf.seek(0)
+
+        return Response(
+            content=buf.read(),
+            media_type="image/png",
+            headers={"Cache-Control": "public, max-age=86400"}
+        )
+
+    except ImportError:
+        # Pillow não instalado — retorna 404 com mensagem clara
+        raise HTTPException(status_code=404, detail="Pillow não instalado. Adicione 'Pillow' ao requirements.txt")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 # ==================== ENDPOINTS BASE ====================
 
 @app.get("/")
@@ -379,10 +409,6 @@ async def list_series(
     per_page: int = Query(1000, ge=1, le=1000),
     db: Session = Depends(get_db)
 ):
-    """
-    FIX #22: busca contadores de issues em UMA query batch — elimina N+1.
-    FIX #7: suporte real ao filtro de status.
-    """
     try:
         query = db.query(SeriesDB)
         if search:
@@ -394,7 +420,6 @@ async def list_series(
             )
         series_list = query.order_by(SeriesDB.title).all()
 
-        # FIX #22: UMA query para todos os contadores
         counts = get_issue_counts(db, [s.id for s in series_list])
 
         result = []
@@ -406,7 +431,6 @@ async def list_series(
             result.append(d)
 
         total_items = len(result)
-        # Para busca com texto, paginar no servidor
         if search:
             start = (page - 1) * per_page
             paginated = result[start:start + per_page]
@@ -419,7 +443,6 @@ async def list_series(
                     "total_pages": max(1, -(-total_items // per_page))
                 }
             }
-        # Sem busca: retorna tudo (paginação local no frontend)
         return {
             "items": result,
             "pagination": {
@@ -586,13 +609,8 @@ async def create_issue(series_id: int, issue: IssueCreate, db: Session = Depends
         raise HTTPException(status_code=500, detail=str(e))
 
 
-# FIX #1: endpoint bulk que substitui os N loops do frontend
 @app.post("/series/{series_id}/issues/bulk")
 async def bulk_sync_issues(series_id: int, data: BulkIssueCreate, db: Session = Depends(get_db)):
-    """
-    Cria/recria TODAS as edições de uma série em UMA operação de banco.
-    Substitui os loops de 80-160 requisições individuais.
-    """
     try:
         series = db.query(SeriesDB).filter(SeriesDB.id == series_id).first()
         if not series:
@@ -627,10 +645,8 @@ async def bulk_sync_issues(series_id: int, data: BulkIssueCreate, db: Session = 
         raise HTTPException(status_code=500, detail=str(e))
 
 
-# FIX #2: bulk update de status de leitura — uma query no lugar de N PATCH
 @app.patch("/series/{series_id}/issues/bulk-read")
 async def bulk_update_read(series_id: int, data: BulkReadUpdate, db: Session = Depends(get_db)):
-    """Marca TODAS as edições como lidas/não lidas em uma única query."""
     try:
         now = datetime.now().isoformat() if data.is_read else None
         db.query(IssueDB).filter(IssueDB.series_id == series_id).update(
@@ -644,10 +660,8 @@ async def bulk_update_read(series_id: int, data: BulkReadUpdate, db: Session = D
         raise HTTPException(status_code=500, detail=str(e))
 
 
-# FIX #2: deletar TODAS as edições em uma query (substituindo loop de DELETE)
 @app.delete("/series/{series_id}/issues")
 async def delete_all_issues(series_id: int, db: Session = Depends(get_db)):
-    """Deleta todas as edições de uma série em uma única query."""
     try:
         series = db.query(SeriesDB).filter(SeriesDB.id == series_id).first()
         if not series:
@@ -713,7 +727,6 @@ async def patch_issue_read_status(
         raise HTTPException(status_code=500, detail=str(e))
 
 
-# FIX #3: apenas UM endpoint de delete de issue (o com series_id, mais seguro)
 @app.delete("/series/{series_id}/issues/{issue_id}")
 async def delete_issue(series_id: int, issue_id: int, db: Session = Depends(get_db)):
     try:
@@ -736,10 +749,6 @@ async def delete_issue(series_id: int, issue_id: int, db: Session = Depends(get_
 
 @app.get("/stats")
 async def get_stats(db: Session = Depends(get_db)):
-    """
-    FIX #21: tudo calculado direto no banco com SQL — sem loop Python em memória.
-    FIX #15: inclui contador de sagas.
-    """
     try:
         total    = db.query(func.count(SeriesDB.id)).scalar() or 0
         para_ler = db.query(func.count(SeriesDB.id)).filter(SeriesDB.read_issues == 0).scalar() or 0
@@ -751,7 +760,6 @@ async def get_stats(db: Session = Depends(get_db)):
             SeriesDB.read_issues >= SeriesDB.total_issues,
             SeriesDB.total_issues > 0
         ).scalar() or 0
-        # FIX #15
         sagas = db.query(func.count(SeriesDB.id)).filter(
             SeriesDB.series_type == 'saga'
         ).scalar() or 0
@@ -761,7 +769,7 @@ async def get_stats(db: Session = Depends(get_db)):
             "para_ler": para_ler,
             "lendo":    lendo,
             "concluida": concluida,
-            "concluidas": concluida,   # alias para compatibilidade com frontend existente
+            "concluidas": concluida,
             "sagas":    sagas
         }
     except Exception as e:
@@ -772,7 +780,6 @@ async def get_stats(db: Session = Depends(get_db)):
 
 @app.post("/recalculate-all")
 async def recalculate_all(db: Session = Depends(get_db)):
-    """FIX #22: recalcula todos em UMA query batch, sem loop de N queries."""
     try:
         all_series = db.query(SeriesDB).all()
         counts = get_issue_counts(db, [s.id for s in all_series])
@@ -803,14 +810,10 @@ async def recalculate_all(db: Session = Depends(get_db)):
         raise HTTPException(status_code=500, detail=str(e))
 
 
-# ==================== EXPORTAÇÃO (FIX #12) ====================
+# ==================== EXPORTAÇÃO ====================
 
 @app.get("/export")
 async def export_data(db: Session = Depends(get_db)):
-    """
-    FIX #12: exporta todos os dados como CSV para backup.
-    Evita perda de dados se o Railway resetar o banco.
-    """
     try:
         series_list = db.query(SeriesDB).order_by(SeriesDB.title).all()
         counts = get_issue_counts(db, [s.id for s in series_list])
@@ -848,17 +851,10 @@ async def export_data(db: Session = Depends(get_db)):
         raise HTTPException(status_code=500, detail=str(e))
 
 
-# ==================== IMPORTAÇÃO (FIX #18) ====================
+# ==================== IMPORTAÇÃO ====================
 
 @app.post("/import")
 async def import_data(file: UploadFile = File(...), db: Session = Depends(get_db)):
-    """
-    FIX #18: importa HQs de um arquivo CSV ou XLSX via UI.
-    Colunas obrigatórias: title
-    Colunas opcionais:  author, publisher, series_type, total_issues,
-                        read_issues, downloaded_issues, is_completed,
-                        year_start, year_end, cover_url, notes
-    """
     try:
         content = await file.read()
         filename = file.filename.lower()
