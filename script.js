@@ -29,11 +29,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (isDarkMode) document.body.classList.add('dark-mode');
 
     loadSeries();
-    loadStats();
     initScrollBehavior();
-
-    // FIX #20: popular filtro de editoras após carregar
-    // (será chamado dentro de loadSeries ao final)
 
     // Restaurar view de detalhes se estava aberta
     const savedView     = localStorage.getItem('currentView');
@@ -141,7 +137,6 @@ function showLoading() {
     if (emptyState) emptyState.style.display = 'none';
     if (grid) {
         grid.style.display = 'grid';
-        // Gerar 8 skeleton cards
         grid.innerHTML = Array(8).fill(0).map(() => `
             <div class="comic-card skeleton-card">
                 <div class="skeleton-cover"></div>
@@ -159,11 +154,50 @@ function hideLoading() {
     // O displaySeries() vai substituir o grid, não precisa fazer nada aqui
 }
 
+// ==================== STATS LOCAIS (CORREÇÃO DO CONTADOR) ====================
+
+function updateStatsFromAllSeries() {
+    const total     = allSeries.length;
+    const para_ler  = allSeries.filter(s => s.read_issues === 0).length;
+    const lendo     = allSeries.filter(s => s.read_issues > 0 && s.read_issues < s.total_issues).length;
+    const concluidas = allSeries.filter(s => s.total_issues > 0 && s.read_issues >= s.total_issues).length;
+    const sagas     = allSeries.filter(s => s.series_type === 'saga').length;
+
+    const setEl = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
+    setEl('stat-total',      total);
+    setEl('stat-para-ler',   para_ler);
+    setEl('stat-lendo',      lendo);
+    setEl('stat-concluidas', concluidas);
+    setEl('stat-sagas',      sagas);
+
+    updateMobileStats();
+}
+
+// Mantida por compatibilidade (chamada em alguns lugares), agora usa dados locais quando possível
+async function loadStats() {
+    if (allSeries.length > 0) {
+        updateStatsFromAllSeries();
+        return;
+    }
+    try {
+        const stats = await fetchAPI('/stats');
+        const setEl = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
+        setEl('stat-total',      stats.total      || 0);
+        setEl('stat-para-ler',   stats.para_ler   || 0);
+        setEl('stat-lendo',      stats.lendo      || 0);
+        setEl('stat-concluidas', stats.concluidas || stats.concluida || 0);
+        setEl('stat-sagas',      stats.sagas      || 0);
+        updateMobileStats();
+    } catch (error) {
+        console.error('Error loading stats:', error);
+    }
+}
+
 // ==================== LOAD ====================
 
 async function loadSeries(filterQuery = '', page = 1) {
     try {
-        showLoading(); // FIX #10
+        showLoading();
         let perPageToUse = filterQuery ? perPage : 1000;
         let endpoint = `/series?page=${page}&per_page=${perPageToUse}`;
         if (filterQuery) endpoint += `&search=${encodeURIComponent(filterQuery)}`;
@@ -185,31 +219,15 @@ async function loadSeries(filterQuery = '', page = 1) {
         // FIX #20: atualizar lista de editoras
         updatePublisherFilter();
 
+        // Atualizar stats diretamente dos dados carregados (contador de concluídas correto)
+        updateStatsFromAllSeries();
+
         displaySeries();
         updatePaginationControls();
     } catch (error) {
         console.error('Error loading series:', error);
         alert('Erro ao carregar HQs. Verifique se o servidor está online.');
         showEmptyState();
-    }
-}
-
-async function loadStats() {
-    try {
-        const stats = await fetchAPI('/stats');
-
-        document.getElementById('stat-total').textContent      = stats.total      || 0;
-        document.getElementById('stat-para-ler').textContent   = stats.para_ler   || 0;
-        document.getElementById('stat-lendo').textContent      = stats.lendo      || 0;
-        document.getElementById('stat-concluidas').textContent = stats.concluidas || stats.concluida || 0;
-
-        // FIX #15: atualizar stat de sagas
-        const sagaEl = document.getElementById('stat-sagas');
-        if (sagaEl) sagaEl.textContent = stats.sagas || 0;
-
-        updateMobileStats();
-    } catch (error) {
-        console.error('Error loading stats:', error);
     }
 }
 
@@ -279,7 +297,6 @@ function applySorting(series) {
             return arr.sort((a, b) => {
                 const ra = a.total_issues > 0 ? a.read_issues / a.total_issues : 0;
                 const rb = b.total_issues > 0 ? b.read_issues / b.total_issues : 0;
-                // Quase concluídas primeiro (entre 50% e 99%)
                 const inRangeA = ra >= 0.5 && ra < 1 ? 1 : 0;
                 const inRangeB = rb >= 0.5 && rb < 1 ? 1 : 0;
                 if (inRangeA !== inRangeB) return inRangeB - inRangeA;
@@ -296,7 +313,6 @@ function displaySeries() {
     const grid       = document.getElementById('series-grid');
     const emptyState = document.getElementById('empty-state');
 
-    // Filtrar por status
     let filteredSeries = allSeries;
     if (currentFilter === 'para_ler') {
         filteredSeries = allSeries.filter(s => s.read_issues === 0);
@@ -308,15 +324,11 @@ function displaySeries() {
         filteredSeries = allSeries.filter(s => s.series_type === 'saga');
     }
 
-    // FIX #20: filtrar por editora
     if (currentPublisherFilter) {
         filteredSeries = filteredSeries.filter(s => s.publisher === currentPublisherFilter);
     }
 
-    // FIX #13: aplicar ordenação
     filteredSeries = applySorting(filteredSeries);
-
-    // FIX #9: REMOVIDO console.table com todos os dados
 
     if (filteredSeries.length === 0) {
         showEmptyState();
@@ -326,7 +338,6 @@ function displaySeries() {
         return;
     }
 
-    // Paginação local
     totalItems = filteredSeries.length;
     totalPages = Math.ceil(totalItems / perPage);
     if (totalPages < 1) totalPages = 1;
@@ -367,7 +378,6 @@ function createSeriesCard(series) {
     const typeInfo     = getSeriesTypeLabel(series.series_type);
     const typeBadge    = `<span class="series-type-badge ${typeInfo.class}">${typeInfo.emoji} ${typeInfo.text}</span>`;
 
-    // FIX #16: mostrar anos se existirem
     const yearStr = series.year_start
         ? `<p class="comic-year">📅 ${series.year_start}${series.year_end ? ' – ' + series.year_end : ''}</p>`
         : '';
@@ -464,7 +474,6 @@ async function loadSeriesDetail(seriesId) {
         if (series.publisher) { publisherEl.textContent = `📚 ${series.publisher}`; publisherEl.style.display = 'block'; }
         else publisherEl.style.display = 'none';
 
-        // FIX #16: anos
         const yearEl = document.getElementById('detail-years');
         if (yearEl) {
             if (series.year_start) {
@@ -475,7 +484,6 @@ async function loadSeriesDetail(seriesId) {
             }
         }
 
-        // Edições da saga
         const sagaEditionsDisplay = document.getElementById('saga-editions-display');
         const sagaEditionsList    = document.getElementById('saga-editions-list');
         if (series.series_type === 'saga' && series.saga_editions) {
@@ -488,7 +496,6 @@ async function loadSeriesDetail(seriesId) {
             sagaEditionsDisplay.style.display = 'none';
         }
 
-        // Capa
         const coverImg         = document.getElementById('detail-cover');
         const coverPlaceholder = coverImg.nextElementSibling;
         if (series.cover_url) {
@@ -500,7 +507,6 @@ async function loadSeriesDetail(seriesId) {
             coverPlaceholder.style.display = 'flex';
         }
 
-        // Progresso
         const progress = series.total_issues > 0
             ? Math.round((series.read_issues / series.total_issues) * 100) : 0;
         document.getElementById('detail-progress').textContent =
@@ -512,7 +518,6 @@ async function loadSeriesDetail(seriesId) {
         document.getElementById('detail-downloaded').textContent = series.downloaded_issues;
         document.getElementById('detail-total').textContent      = series.total_issues;
 
-        // Stats saga
         const sagaDivisionStats = document.getElementById('saga-division-stats');
         if (series.series_type === 'saga' && (series.main_issues || series.tie_in_issues)) {
             document.getElementById('detail-main-issues').textContent    = series.main_issues   || 0;
@@ -522,12 +527,10 @@ async function loadSeriesDetail(seriesId) {
             sagaDivisionStats.style.display = 'none';
         }
 
-        // Botão notas
         const btnViewNotes = document.getElementById('btn-view-notes');
         if (series.notes && series.notes.trim()) btnViewNotes.style.display = 'flex';
         else btnViewNotes.style.display = 'none';
 
-        // Carregar edições
         const issues = await fetchAPI(`/series/${seriesId}/issues`);
         displayIssues(issues);
         updateUndoButton();
@@ -575,7 +578,6 @@ function createIssueCard(issue) {
 
     badge.className = `issue-badge ${colorClass}`;
 
-    // FIX #17: mostrar data de leitura no title se disponível
     let titleText = issue.is_read ? 'Lida' : (issue.is_downloaded ? 'Baixada' : 'Não baixada');
     if (issue.is_read && issue.date_read) {
         try {
@@ -616,6 +618,16 @@ function goToHome() {
     localStorage.removeItem('currentView');
     localStorage.removeItem('currentSeriesId');
 
+    // CORREÇÃO: limpar campos de busca ao voltar para home
+    const mobileInput = document.getElementById('search-input');
+    const mobileClear = document.getElementById('search-clear');
+    const desktopInput = document.getElementById('search-input-desktop');
+    const desktopClear = document.getElementById('search-clear-desktop');
+    if (mobileInput)  mobileInput.value = '';
+    if (mobileClear)  mobileClear.style.display = 'none';
+    if (desktopInput) desktopInput.value = '';
+    if (desktopClear) desktopClear.style.display = 'none';
+
     document.getElementById('detail-view').style.display = 'none';
     document.getElementById('btn-back').style.display    = 'none';
     document.body.classList.remove('detail-page');
@@ -632,7 +644,6 @@ function goToHome() {
     currentSeries   = null;
 
     loadSeries();
-    loadStats();
 }
 
 // ==================== FILTROS ====================
@@ -655,7 +666,6 @@ function handleSearch() {
     const query    = document.getElementById('search-input').value;
     const clearBtn = document.getElementById('search-clear');
     clearBtn.style.display = query ? 'block' : 'none';
-    // Sincroniza com o campo desktop
     const desktopInput = document.getElementById('search-input-desktop');
     if (desktopInput) desktopInput.value = query;
     const desktopClear = document.getElementById('search-clear-desktop');
@@ -672,7 +682,6 @@ function handleSearchDesktop() {
     const query    = document.getElementById('search-input-desktop').value;
     const clearBtn = document.getElementById('search-clear-desktop');
     clearBtn.style.display = query ? 'block' : 'none';
-    // Sincroniza com o campo mobile
     const mobileInput = document.getElementById('search-input');
     if (mobileInput) mobileInput.value = query;
     const mobileClear = document.getElementById('search-clear');
@@ -741,7 +750,6 @@ async function desfazerUltimaAcao() {
                 alert(`Total voltou de ${lastAction.newTotal} para ${lastAction.oldTotal}`);
                 break;
             }
-            // FIX #11: undo de toggle de leitura
             case 'toggle_read':
                 await fetchAPI(`/series/${lastAction.seriesId}/issues/${lastAction.issueId}`, {
                     method: 'PATCH',
@@ -749,14 +757,12 @@ async function desfazerUltimaAcao() {
                 });
                 alert(`Edição #${lastAction.issueNumber} voltou ao estado anterior`);
                 break;
-            // FIX #11: undo de deletar série
             case 'delete_series':
                 alert('Não é possível desfazer a exclusão de uma série.');
                 break;
         }
         updateUndoButton();
         if (currentSeriesId) await loadSeriesDetail(currentSeriesId);
-        await loadStats();
         await loadSeries();
     } catch (error) {
         console.error('❌ Erro ao desfazer:', error);
@@ -785,7 +791,6 @@ async function aumentarTotalIssues() {
         });
         addToUndoStack({ type: 'increase_total', seriesId: currentSeriesId, oldTotal, newTotal: novoTotal });
         await loadSeriesDetail(currentSeriesId);
-        await loadStats();
         await loadSeries();
     } catch (error) {
         alert('Erro ao aumentar total: ' + error.message);
@@ -820,7 +825,6 @@ async function submitIssueForm(e) {
         addToUndoStack({ type: 'add_issue', seriesId: currentSeriesId, issueId: result.id, issueNumber });
         closeIssueModal();
         await loadSeriesDetail(currentSeriesId);
-        await loadStats();
         await loadSeries();
     } catch (error) {
         alert('Erro ao adicionar edição: ' + error.message);
@@ -844,7 +848,6 @@ async function recalcularEdicoes(event) {
     button.disabled  = true;
 
     try {
-        // FIX #1: UMA requisição bulk ao invés de loop de N DELETE + N POST
         await fetchAPI(`/series/${currentSeriesId}/issues/bulk`, {
             method: 'POST',
             body: JSON.stringify({
@@ -855,7 +858,6 @@ async function recalcularEdicoes(event) {
         });
         alert(`✅ ${currentSeries.total_issues} edições recriadas!`);
         await loadSeriesDetail(currentSeriesId);
-        await loadStats();
         await loadSeries();
     } catch (error) {
         alert('Erro ao recalcular edições: ' + error.message);
@@ -865,7 +867,6 @@ async function recalcularEdicoes(event) {
     }
 }
 
-// FIX #1: Sincronizar também com bulk
 async function sincronizarEdicoesAutomaticamente(event) {
     if (!currentSeriesId || !currentSeries) { alert('Erro: Série não identificada'); return; }
 
@@ -881,7 +882,6 @@ async function sincronizarEdicoesAutomaticamente(event) {
     button.disabled  = true;
 
     try {
-        // FIX #1: UMA requisição bulk
         await fetchAPI(`/series/${currentSeriesId}/issues/bulk`, {
             method: 'POST',
             body: JSON.stringify({
@@ -892,7 +892,6 @@ async function sincronizarEdicoesAutomaticamente(event) {
         });
         alert(`✅ ${currentSeries.total_issues} edições sincronizadas!`);
         await loadSeriesDetail(currentSeriesId);
-        await loadStats();
         await loadSeries();
     } catch (error) {
         alert('Erro ao sincronizar: ' + error.message);
@@ -917,7 +916,6 @@ async function verificarSincronizacaoLendo() {
     } catch { alert('Erro ao verificar'); }
 }
 
-// Toggle issue read — FIX #11: registra no undo
 async function toggleIssueRead(issueId, isRead) {
     const oldState = !isRead;
     try {
@@ -925,10 +923,8 @@ async function toggleIssueRead(issueId, isRead) {
             method: 'PATCH',
             body: JSON.stringify({ is_read: isRead })
         });
-        // FIX #11: undo de toggle
         addToUndoStack({ type: 'toggle_read', seriesId: currentSeriesId, issueId, oldState, issueNumber: issueId });
         loadSeriesDetail(currentSeriesId);
-        loadStats();
         loadSeries();
     } catch (error) {
         alert('Erro ao atualizar status');
@@ -940,12 +936,10 @@ async function deleteIssue(issueId, issueNumber) {
     try {
         await fetchAPI(`/series/${currentSeriesId}/issues/${issueId}`, { method: 'DELETE' });
         loadSeriesDetail(currentSeriesId);
-        loadStats();
         loadSeries();
     } catch { alert('Erro ao deletar edição'); }
 }
 
-// FIX #2: marcar todas como lidas — UMA requisição
 async function marcarTodasComoLidas() {
     if (!currentSeriesId) { alert('Erro: Série não identificada'); return; }
     if (!confirm('Marcar TODAS as edições como lidas?')) return;
@@ -959,13 +953,11 @@ async function marcarTodasComoLidas() {
         });
         alert('✅ Todas as edições marcadas como lidas!');
         loadSeriesDetail(currentSeriesId);
-        loadStats();
         loadSeries();
     } catch { alert('Erro ao marcar edições como lidas'); }
     finally { button.innerHTML = originalText; button.disabled = false; }
 }
 
-// FIX #2: marcar todas como não lidas — UMA requisição
 async function marcarTodasComoNaoLidas() {
     if (!currentSeriesId) { alert('Erro: Série não identificada'); return; }
     if (!confirm('Marcar TODAS as edições como NÃO lidas?')) return;
@@ -979,13 +971,11 @@ async function marcarTodasComoNaoLidas() {
         });
         alert('✅ Todas as edições marcadas como não lidas!');
         loadSeriesDetail(currentSeriesId);
-        loadStats();
         loadSeries();
     } catch { alert('Erro ao marcar edições como não lidas'); }
     finally { button.innerHTML = originalText; button.disabled = false; }
 }
 
-// FIX #2: deletar todas as edições — UMA requisição
 async function marcarTodasComoNaoBaixadas() {
     if (!currentSeriesId) { alert('Erro: Série não identificada'); return; }
     if (!confirm('⚠️ Isso vai DELETAR TODAS as edições baixadas.\n\nConfirma?')) return;
@@ -996,7 +986,6 @@ async function marcarTodasComoNaoBaixadas() {
         await fetchAPI(`/series/${currentSeriesId}/issues`, { method: 'DELETE' });
         alert('✅ Todas as edições marcadas como não baixadas!');
         loadSeriesDetail(currentSeriesId);
-        loadStats();
         loadSeries();
     } catch { alert('Erro ao marcar edições como não baixadas'); }
     finally { button.innerHTML = originalText; button.disabled = false; }
@@ -1011,7 +1000,6 @@ async function addIssueDownloaded(issueNumber) {
         });
         addToUndoStack({ type: 'add_issue', seriesId: currentSeriesId, issueId: newIssue.id, issueNumber });
         loadSeriesDetail(currentSeriesId);
-        loadStats();
         loadSeries();
     } catch { alert('Erro ao adicionar edição'); }
 }
@@ -1021,7 +1009,6 @@ async function marcarComoNaoBaixada(issueId, issueNumber) {
     try {
         await fetchAPI(`/series/${currentSeriesId}/issues/${issueId}`, { method: 'DELETE' });
         loadSeriesDetail(currentSeriesId);
-        loadStats();
         loadSeries();
     } catch { alert('Erro ao marcar edição como não baixada'); }
 }
@@ -1072,7 +1059,6 @@ function previewCoverUrl() {
         return;
     }
 
-    // FIX #8: validação básica de URL
     try {
         new URL(url);
     } catch {
@@ -1099,7 +1085,6 @@ async function openModal(seriesId = null) {
     const title = document.getElementById('modal-title');
     form.reset();
 
-    // Limpar preview de capa
     const preview = document.getElementById('cover-url-preview');
     const warn    = document.getElementById('cover-url-warning');
     if (preview) preview.style.display = 'none';
@@ -1121,12 +1106,10 @@ async function openModal(seriesId = null) {
             document.getElementById('saga_editions').value = series.saga_editions || '';
             document.getElementById('main_issues').value  = series.main_issues   || 0;
             document.getElementById('tie_in_issues').value = series.tie_in_issues || 0;
-            // FIX #16
             const ysEl = document.getElementById('year_start');
             const yeEl = document.getElementById('year_end');
             if (ysEl) ysEl.value = series.year_start || '';
             if (yeEl) yeEl.value = series.year_end   || '';
-            // FIX #19: mostrar preview se já tiver URL
             if (series.cover_url) previewCoverUrl();
         } catch (error) {
             alert('Erro ao carregar dados da série'); return;
@@ -1149,7 +1132,6 @@ async function submitSeriesForm(e) {
     e.preventDefault();
     const seriesId = document.getElementById('series-id').value;
 
-    // FIX #8: validar URL da capa
     const coverUrlVal = document.getElementById('cover_url').value.trim();
     if (coverUrlVal) {
         try { new URL(coverUrlVal); }
@@ -1171,7 +1153,6 @@ async function submitSeriesForm(e) {
         saga_editions: document.getElementById('saga_editions').value || null,
         main_issues:   parseInt(document.getElementById('main_issues').value)   || 0,
         tie_in_issues: parseInt(document.getElementById('tie_in_issues').value) || 0,
-        // FIX #16
         year_start: parseInt(document.getElementById('year_start')?.value) || null,
         year_end:   parseInt(document.getElementById('year_end')?.value)   || null,
     };
@@ -1195,7 +1176,6 @@ async function submitSeriesForm(e) {
         }
         closeModal();
         await loadSeries();
-        await loadStats();
         if (seriesId && currentSeriesId == seriesId) await loadSeriesDetail(seriesId);
     } catch (error) {
         alert('Erro ao salvar HQ: ' + error.message);
@@ -1213,11 +1193,9 @@ async function deleteSeries(seriesId, seriesTitle = 'esta HQ') {
     if (!confirm(`Deletar "${seriesTitle}"?`)) return;
     try {
         await fetchAPI(`/series/${seriesId}`, { method: 'DELETE' });
-        // FIX #11: registrar no undo (não é reversível, mas loga no stack)
         addToUndoStack({ type: 'delete_series', seriesId, title: seriesTitle });
         goToHome();
         loadSeries();
-        loadStats();
     } catch { alert('Erro ao deletar HQ'); }
 }
 
@@ -1312,7 +1290,6 @@ async function recalcularTodasHQs(event) {
         const result = await fetchAPI('/recalculate-all', { method: 'POST' });
         alert(`✅ Recálculo concluído!\n\n📊 Total: ${result.total}\n✅ Recalculadas: ${result.recalculated}\n❌ Erros: ${result.errors}`);
         loadSeries();
-        loadStats();
     } catch (error) {
         alert('❌ Erro ao recalcular HQs: ' + error.message);
     } finally {
@@ -1372,7 +1349,6 @@ async function submitImport(e) {
         alert(`✅ Importação concluída!\n\n📥 Criadas: ${result.created}\n⏭️ Ignoradas: ${result.skipped}\n❌ Erros: ${result.errors}`);
         closeImportModal();
         loadSeries();
-        loadStats();
     } catch (error) {
         alert('Erro ao importar: ' + error.message);
     } finally {
