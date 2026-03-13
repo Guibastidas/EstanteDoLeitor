@@ -781,22 +781,52 @@ async def patch_issue_read_status(
 
 @app.delete("/series/{series_id}/issues/not-downloaded")
 async def delete_not_downloaded_issues(series_id: int, db: Session = Depends(get_db)):
-    """Deleta todas as edições não baixadas de uma série"""
+    """
+    Deleta edições não baixadas de uma série.
+
+    As edições "cinzas" no frontend são FANTASMAS — geradas pelo frontend para
+    cada número de 1 até total_issues que não existe no banco. O backend não as
+    conhece, então simplesmente deletar registros com is_downloaded=False retorna 0.
+
+    A correção real: além de deletar registros marcados como não-baixados,
+    atualiza total_issues para bater com o número de registros que realmente
+    existem no banco, fazendo os fantasmas sumirem do frontend.
+    """
     try:
         db_series = db.query(SeriesDB).filter(SeriesDB.id == series_id).first()
         if not db_series:
             raise HTTPException(status_code=404, detail="Série não encontrada")
-        
-        # Buscar e deletar edições não baixadas
+
+        total_antes = db_series.total_issues
+
+        # 1. Deleta registros reais marcados como não-baixados
         deleted_count = db.query(IssueDB).filter(
             IssueDB.series_id == series_id,
             IssueDB.is_downloaded == False
         ).delete(synchronize_session=False)
-        
+
+        # 2. Conta quantas edições realmente existem no banco agora
+        remaining = db.query(func.count(IssueDB.id)).filter(
+            IssueDB.series_id == series_id
+        ).scalar() or 0
+
+        # 3. Calcula os fantasmas: total_issues - registros existentes no banco
+        fantasmas = max(0, total_antes - remaining - deleted_count)
+
+        # 4. Atualiza total_issues para = registros reais no banco
+        #    Isso faz os placeholders cinzas sumirem do frontend
+        db_series.total_issues = remaining
+        db_series.date_updated = datetime.now().isoformat()
+
         db.commit()
+
+        total_removidos = deleted_count + fantasmas
         return {
-            "message": f"{deleted_count} edições não baixadas foram deletadas",
-            "deleted_count": deleted_count
+            "message": f"{total_removidos} edições não baixadas foram removidas",
+            "deleted_count": total_removidos,
+            "db_deleted": deleted_count,
+            "phantoms_removed": fantasmas,
+            "new_total": remaining
         }
     except HTTPException:
         raise
