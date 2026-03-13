@@ -779,24 +779,6 @@ async def patch_issue_read_status(
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@app.delete("/series/{series_id}/issues/{issue_id}")
-async def delete_issue(series_id: int, issue_id: int, db: Session = Depends(get_db)):
-    try:
-        db_issue = db.query(IssueDB).filter(
-            IssueDB.id == issue_id, IssueDB.series_id == series_id
-        ).first()
-        if not db_issue:
-            raise HTTPException(status_code=404, detail="Edição não encontrada")
-        db.delete(db_issue)
-        db.commit()
-        return {"message": "Edição deletada com sucesso"}
-    except HTTPException:
-        raise
-    except Exception as e:
-        db.rollback()
-        raise HTTPException(status_code=500, detail=str(e))
-
-
 @app.delete("/series/{series_id}/issues/not-downloaded")
 async def delete_not_downloaded_issues(series_id: int, db: Session = Depends(get_db)):
     """Deleta todas as edições não baixadas de uma série"""
@@ -816,6 +798,24 @@ async def delete_not_downloaded_issues(series_id: int, db: Session = Depends(get
             "message": f"{deleted_count} edições não baixadas foram deletadas",
             "deleted_count": deleted_count
         }
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.delete("/series/{series_id}/issues/{issue_id}")
+async def delete_issue(series_id: int, issue_id: int, db: Session = Depends(get_db)):
+    try:
+        db_issue = db.query(IssueDB).filter(
+            IssueDB.id == issue_id, IssueDB.series_id == series_id
+        ).first()
+        if not db_issue:
+            raise HTTPException(status_code=404, detail="Edição não encontrada")
+        db.delete(db_issue)
+        db.commit()
+        return {"message": "Edição deletada com sucesso"}
     except HTTPException:
         raise
     except Exception as e:
