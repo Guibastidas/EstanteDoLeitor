@@ -619,11 +619,16 @@ function createIssueCard(issue) {
 
     badge.addEventListener('click', (e) => {
         if (e.target.closest('.issue-badge-delete') || e.target.closest('.issue-badge-undownload')) return;
-        if (!issue.id) addIssueDownloaded(issue.issue_number);
-        else toggleIssueRead(issue.id, !issue.is_read);
+        if (!issue.id) {
+            addIssueDownloaded(issue.issue_number);
+        } else if (!issue.is_downloaded) {
+            marcarComoBaixada(issue.id);
+        } else {
+            toggleIssueRead(issue.id, !issue.is_read);
+        }
     });
 
-    if (issue.id) {
+        if (issue.id) {
         const undownloadBtn = badge.querySelector('.issue-badge-undownload');
         if (undownloadBtn) undownloadBtn.addEventListener('click', (e) => {
             e.stopPropagation(); marcarComoNaoBaixada(issue.id, issue.issue_number);
@@ -1057,6 +1062,32 @@ async function addIssueDownloaded(issueNumber) {
         loadSeriesDetail(currentSeriesId);
         loadSeries();
     } catch { alert('Erro ao adicionar edição'); }
+}
+
+async function marcarComoBaixada(issueId) {
+    // Cinza → Laranja: marca is_downloaded=true sem deletar/criar
+    if (!currentSeriesId) return;
+    try {
+        await fetchAPI(`/series/${currentSeriesId}/issues/${issueId}`, {
+            method: 'PATCH',
+            body: JSON.stringify({ is_downloaded: true, is_read: false })
+        });
+        loadSeriesDetail(currentSeriesId);
+        loadSeries();
+    } catch { alert('Erro ao marcar edição como baixada'); }
+}
+
+async function marcarComoNaoBaixadaSilencioso(issueId) {
+    // Verde → Cinza: sem confirm, só PATCH
+    if (!currentSeriesId) return;
+    try {
+        await fetchAPI(`/series/${currentSeriesId}/issues/${issueId}`, {
+            method: 'PATCH',
+            body: JSON.stringify({ is_downloaded: false, is_read: false })
+        });
+        loadSeriesDetail(currentSeriesId);
+        loadSeries();
+    } catch { alert('Erro ao marcar edição como não baixada'); }
 }
 
 async function marcarComoNaoBaixada(issueId, issueNumber) {

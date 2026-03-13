@@ -823,6 +823,8 @@ async def patch_issue_read_status(
         ).first()
         if not db_issue:
             raise HTTPException(status_code=404, detail="Edição não encontrada")
+        if "is_downloaded" in update_data:
+            db_issue.is_downloaded = update_data["is_downloaded"]
         if "is_read" in update_data:
             db_issue.is_read   = update_data["is_read"]
             db_issue.date_read = datetime.now().isoformat() if update_data["is_read"] else None
