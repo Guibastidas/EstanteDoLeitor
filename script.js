@@ -1004,16 +1004,16 @@ async function marcarTodasComoNaoLidas() {
 
 async function marcarTodasComoNaoBaixadas() {
     if (!currentSeriesId) { alert('Erro: Série não identificada'); return; }
-    if (!confirm('⚠️ Isso vai DELETAR TODAS as edições baixadas.\n\nConfirma?')) return;
+    if (!confirm('⚠️ Marcar TODAS as edições como não baixadas (cinza)?\n\nElas continuam existindo, só mudam de status.\n\nConfirma?')) return;
     const button = event.target;
     const originalText = button.innerHTML;
-    button.innerHTML = '⏳ Deletando...'; button.disabled = true;
+    button.innerHTML = '⏳ Marcando...'; button.disabled = true;
     try {
-        await fetchAPI(`/series/${currentSeriesId}/issues`, { method: 'DELETE' });
-        alert('✅ Todas as edições marcadas como não baixadas!');
+        // PATCH: só muda o status, NÃO deleta nada
+        await fetchAPI(`/series/${currentSeriesId}/issues/bulk-undownload`, { method: 'PATCH' });
         await loadSeriesDetail(currentSeriesId);
         await loadSeries();
-    } catch { alert('Erro ao marcar edições como não baixadas'); }
+    } catch (e) { alert('Erro ao marcar edições: ' + e.message); }
     finally { button.innerHTML = originalText; button.disabled = false; }
 }
 

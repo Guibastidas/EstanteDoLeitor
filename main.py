@@ -677,7 +677,7 @@ async def add_issues_by_range(series_id: int, data: RangeIssueCreate, db: Sessio
                     series_id=series_id,
                     issue_number=i,
                     is_read=data.mark_as_read,
-                    is_downloaded=True,
+                    is_downloaded=False,   # intervalo entra como NÃO baixado (cinza)
                     date_added=now,
                     date_read=now if data.mark_as_read else None
                 )
@@ -706,6 +706,24 @@ async def add_issues_by_range(series_id: int, data: RangeIssueCreate, db: Sessio
         }
     except HTTPException:
         raise
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.patch("/series/{series_id}/issues/bulk-undownload")
+async def bulk_mark_not_downloaded(series_id: int, db: Session = Depends(get_db)):
+    """
+    Marca TODAS as edições baixadas/lidas como não-baixadas (is_downloaded=False, is_read=False).
+    NÃO deleta nenhum registro — apenas muda o status visual para cinza.
+    """
+    try:
+        db.query(IssueDB).filter(IssueDB.series_id == series_id).update(
+            {"is_downloaded": False, "is_read": False, "date_read": None},
+            synchronize_session=False
+        )
+        db.commit()
+        return {"message": "Todas as edições marcadas como não baixadas"}
     except Exception as e:
         db.rollback()
         raise HTTPException(status_code=500, detail=str(e))
