@@ -1538,50 +1538,15 @@ function openRangeIssueModal() {
         alert('Erro: Série não identificada');
         return;
     }
-    
-    const modal = document.getElementById('range-issue-modal');
-    if (!modal) {
-        createRangeIssueModal();
-    }
-    
-    document.getElementById('range-issue-form').reset();
+    // Modal agora é estático no HTML — só reseta e abre
+    const form = document.getElementById('range-issue-form');
+    if (form) form.reset();
     document.getElementById('range-issue-modal').classList.add('active');
-}
-
-function createRangeIssueModal() {
-    const modalHTML = `
-        <div id="range-issue-modal" class="modal">
-            <div class="modal-overlay" onclick="closeRangeIssueModal()"></div>
-            <div class="modal-content modal-small">
-                <div class="modal-header">
-                    <h2 class="modal-title">📚 Adicionar Intervalo de Edições</h2>
-                    <button class="close-btn" onclick="closeRangeIssueModal()">✕</button>
-                </div>
-                <div class="modal-body">
-                    <form id="range-issue-form" onsubmit="submitRangeIssueForm(event)">
-                        <div class="form-group">
-                            <label for="range_start_number">Número inicial:</label>
-                            <input type="number" id="range_start_number" name="range_start_number" min="1" required autocomplete="off" placeholder="Ex: 957">
-                        </div>
-                        <div class="form-group">
-                            <label for="range_end_number">Número final:</label>
-                            <input type="number" id="range_end_number" name="range_end_number" min="1" required autocomplete="off" placeholder="Ex: 1093">
-                        </div>
-                        <div class="checkbox-group">
-                            <input type="checkbox" id="range_mark_as_read" name="range_mark_as_read">
-                            <label for="range_mark_as_read">Marcar todas como lidas</label>
-                        </div>
-                        <div class="form-actions">
-                            <button type="button" class="btn-secondary" onclick="closeRangeIssueModal()">Cancelar</button>
-                            <button type="submit" class="btn-primary">Adicionar Intervalo</button>
-                        </div>
-                    </form>
-                </div>
-            </div>
-        </div>
-    `;
-    
-    document.body.insertAdjacentHTML('beforeend', modalHTML);
+    // Foca no primeiro input após abrir
+    setTimeout(() => {
+        const first = document.getElementById('range_start_number');
+        if (first) first.focus();
+    }, 50);
 }
 
 function closeRangeIssueModal() {
