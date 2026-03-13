@@ -192,6 +192,12 @@ class BulkIssueCreate(BaseModel):
     replace_existing: bool = True
 
 
+class RangeIssueCreate(BaseModel):
+    start_number: int
+    end_number: int
+    mark_as_read: bool = False
+
+
 class IssueResponse(BaseModel):
     id: int
     series_id: int
@@ -645,6 +651,52 @@ async def bulk_sync_issues(series_id: int, data: BulkIssueCreate, db: Session = 
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@app.post("/series/{series_id}/issues/range")
+async def add_issues_by_range(series_id: int, data: RangeIssueCreate, db: Session = Depends(get_db)):
+    """Adiciona edições por intervalo (ex: 957 até 1093)"""
+    try:
+        series = db.query(SeriesDB).filter(SeriesDB.id == series_id).first()
+        if not series:
+            raise HTTPException(status_code=404, detail="Série não encontrada")
+        
+        if data.start_number > data.end_number:
+            raise HTTPException(status_code=400, detail="Número inicial deve ser menor que o final")
+        
+        now = datetime.now().isoformat()
+        added_count = 0
+        
+        for i in range(data.start_number, data.end_number + 1):
+            # Verifica se já existe
+            existing = db.query(IssueDB).filter(
+                IssueDB.series_id == series_id,
+                IssueDB.issue_number == i
+            ).first()
+            
+            if not existing:
+                new_issue = IssueDB(
+                    series_id=series_id,
+                    issue_number=i,
+                    is_read=data.mark_as_read,
+                    is_downloaded=True,
+                    date_added=now,
+                    date_read=now if data.mark_as_read else None
+                )
+                db.add(new_issue)
+                added_count += 1
+        
+        db.commit()
+        return {
+            "message": f"{added_count} edições adicionadas (#{data.start_number} a #{data.end_number})",
+            "added_count": added_count,
+            "range": f"{data.start_number}-{data.end_number}"
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @app.patch("/series/{series_id}/issues/bulk-read")
 async def bulk_update_read(series_id: int, data: BulkReadUpdate, db: Session = Depends(get_db)):
     try:
@@ -738,6 +790,32 @@ async def delete_issue(series_id: int, issue_id: int, db: Session = Depends(get_
         db.delete(db_issue)
         db.commit()
         return {"message": "Edição deletada com sucesso"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.delete("/series/{series_id}/issues/not-downloaded")
+async def delete_not_downloaded_issues(series_id: int, db: Session = Depends(get_db)):
+    """Deleta todas as edições não baixadas de uma série"""
+    try:
+        db_series = db.query(SeriesDB).filter(SeriesDB.id == series_id).first()
+        if not db_series:
+            raise HTTPException(status_code=404, detail="Série não encontrada")
+        
+        # Buscar e deletar edições não baixadas
+        deleted_count = db.query(IssueDB).filter(
+            IssueDB.series_id == series_id,
+            IssueDB.is_downloaded == False
+        ).delete()
+        
+        db.commit()
+        return {
+            "message": f"{deleted_count} edições não baixadas foram deletadas",
+            "deleted_count": deleted_count
+        }
     except HTTPException:
         raise
     except Exception as e:

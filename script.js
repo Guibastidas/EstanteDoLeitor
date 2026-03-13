@@ -1430,3 +1430,133 @@ function updateMobileStats() {
         if (srcEl && dstEl) dstEl.textContent = srcEl.textContent;
     });
 }
+
+// ==================== DELETAR EDIÇÕES NÃO BAIXADAS ====================
+
+async function deletarEdicoesNaoBaixadas() {
+    if (!currentSeriesId || !currentSeries) {
+        alert('Erro: Série não identificada');
+        return;
+    }
+
+    const confirmation = confirm(
+        `🗑️ DELETAR EDIÇÕES NÃO BAIXADAS\n\n` +
+        `Série: ${currentSeries.title}\n\n` +
+        `Isso vai deletar TODAS as edições marcadas como "Não Baixada".\n\n` +
+        `Confirmar?`
+    );
+
+    if (!confirmation) return;
+
+    try {
+        const result = await fetchAPI(`/series/${currentSeriesId}/issues/not-downloaded`, {
+            method: 'DELETE'
+        });
+        
+        alert(`✅ ${result.deleted_count} edições não baixadas foram deletadas!`);
+        await loadSeriesDetail(currentSeriesId);
+        await loadSeries();
+    } catch (error) {
+        alert('Erro ao deletar edições: ' + error.message);
+    }
+}
+
+// ==================== ADICIONAR INTERVALO DE EDIÇÕES ====================
+
+function openRangeIssueModal() {
+    if (!currentSeriesId) {
+        alert('Erro: Série não identificada');
+        return;
+    }
+    
+    const modal = document.getElementById('range-issue-modal');
+    if (!modal) {
+        createRangeIssueModal();
+    }
+    
+    document.getElementById('range-issue-form').reset();
+    document.getElementById('range-issue-modal').classList.add('active');
+}
+
+function createRangeIssueModal() {
+    const modalHTML = `
+        <div id="range-issue-modal" class="modal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2>📚 Adicionar Intervalo de Edições</h2>
+                    <button class="close-btn" onclick="closeRangeIssueModal()">✕</button>
+                </div>
+                <form id="range-issue-form" onsubmit="submitRangeIssueForm(event)">
+                    <div class="form-group">
+                        <label for="start_number">Número Inicial:</label>
+                        <input type="number" id="start_number" name="start_number" min="1" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="end_number">Número Final:</label>
+                        <input type="number" id="end_number" name="end_number" min="1" required>
+                    </div>
+                    <div class="form-group checkbox-group">
+                        <input type="checkbox" id="mark_as_read" name="mark_as_read">
+                        <label for="mark_as_read">Marcar todas como lidas</label>
+                    </div>
+                    <div class="form-actions">
+                        <button type="button" class="btn-secondary" onclick="closeRangeIssueModal()">Cancelar</button>
+                        <button type="submit" class="btn-primary">Adicionar Intervalo</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    `;
+    
+    document.body.insertAdjacentHTML('beforeend', modalHTML);
+}
+
+function closeRangeIssueModal() {
+    document.getElementById('range-issue-modal').classList.remove('active');
+}
+
+async function submitRangeIssueForm(e) {
+    e.preventDefault();
+    
+    if (!currentSeriesId) {
+        alert('Erro: Série não identificada');
+        return;
+    }
+    
+    const startNumber = parseInt(document.getElementById('start_number').value);
+    const endNumber = parseInt(document.getElementById('end_number').value);
+    const markAsRead = document.getElementById('mark_as_read').checked;
+    
+    if (startNumber > endNumber) {
+        alert('Número inicial deve ser menor ou igual ao número final!');
+        return;
+    }
+    
+    const count = endNumber - startNumber + 1;
+    const confirmation = confirm(
+        `📚 Adicionar ${count} edições?\n\n` +
+        `Intervalo: #${startNumber} até #${endNumber}\n` +
+        `Marcar como lidas: ${markAsRead ? 'Sim' : 'Não'}\n\n` +
+        `Confirmar?`
+    );
+    
+    if (!confirmation) return;
+    
+    try {
+        const result = await fetchAPI(`/series/${currentSeriesId}/issues/range`, {
+            method: 'POST',
+            body: JSON.stringify({
+                start_number: startNumber,
+                end_number: endNumber,
+                mark_as_read: markAsRead
+            })
+        });
+        
+        alert(`✅ ${result.added_count} edições adicionadas (${result.range})`);
+        closeRangeIssueModal();
+        await loadSeriesDetail(currentSeriesId);
+        await loadSeries();
+    } catch (error) {
+        alert('Erro ao adicionar intervalo: ' + error.message);
+    }
+}

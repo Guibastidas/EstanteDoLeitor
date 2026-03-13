@@ -258,6 +258,7 @@
                             <div class="detail-actions info-actions">
                                 <button class="d-btn d-btn-amber btn-action-detail" onclick="aumentarTotalIssues()">📚 +1 Total</button>
                                 <button class="d-btn d-btn-emerald btn-action-detail btn-success" onclick="openAddIssueModal()">➕ Baixada</button>
+                                <button class="d-btn d-btn-purple btn-action-detail" onclick="openRangeIssueModal()">📊 Intervalo</button>
                                 <button class="d-btn d-btn-sky btn-action-detail btn-secondary" onclick="recalcularEdicoes(event)">🔄 Recalc.</button>
                                 <button class="d-btn d-btn-coral btn-action-detail btn-warning" onclick="editarSerieAtual()">✏️ Editar</button>
                             </div>
@@ -271,6 +272,7 @@
                                     <button class="i-btn ib-g btn-sync-inline btn-mark-all" onclick="marcarTodasComoLidas()">✓ Todas Lidas</button>
                                     <button class="i-btn ib-a btn-sync-inline btn-mark-all" onclick="marcarTodasComoNaoLidas()">↩ Não Lidas</button>
                                     <button class="i-btn ib-r btn-sync-inline btn-mark-all btn-mark-not-downloaded" onclick="marcarTodasComoNaoBaixadas()">✕ Não Baixadas</button>
+                                    <button class="i-btn ib-d btn-sync-inline btn-delete-not-downloaded" onclick="deletarEdicoesNaoBaixadas()">🗑️ Apagar Não Baixadas</button>
                                     <button class="i-btn ib-b btn-sync-inline" onclick="sincronizarEdicoesAutomaticamente(event)">↺ Sincronizar</button>
                                 </div>
                             </div>
