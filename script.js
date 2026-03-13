@@ -119,7 +119,13 @@ async function fetchAPI(endpoint, options = {}) {
 
         if (!response.ok) {
             let errorMessage = `HTTP ${response.status}`;
-            try { const err = await response.json(); errorMessage = err.detail || errorMessage; } catch {}
+            try { 
+                const err = await response.json(); 
+                console.log('📋 Erro da API:', err);
+                errorMessage = err.detail || JSON.stringify(err) || errorMessage; 
+            } catch (parseError) {
+                console.error('Erro ao parsear resposta:', parseError);
+            }
             throw new Error(errorMessage);
         }
         return await response.json();
@@ -1449,40 +1455,39 @@ async function deletarEdicoesNaoBaixadas() {
     if (!confirmation) return;
 
     try {
+        console.log('🔍 Deletando edições não baixadas da série:', currentSeriesId);
+        
         const result = await fetchAPI(`/series/${currentSeriesId}/issues/not-downloaded`, {
             method: 'DELETE'
         });
         
+        console.log('✅ Resultado da API:', result);
+        
         if (result && typeof result.deleted_count !== 'undefined') {
             alert(`✅ ${result.deleted_count} edições não baixadas foram deletadas!`);
-            await loadSeriesDetail(currentSeriesId);
-            await loadSeries();
         } else {
             alert('✅ Edições deletadas com sucesso!');
-            await loadSeriesDetail(currentSeriesId);
-            await loadSeries();
         }
+        
+        await loadSeriesDetail(currentSeriesId);
+        await loadSeries();
     } catch (error) {
-        console.error('❌ Erro ao deletar edições não baixadas:', error);
+        console.error('❌ ERRO CAPTURADO:', error);
+        console.error('❌ Tipo do erro:', typeof error);
+        console.error('❌ error.message:', error.message);
+        console.error('❌ error.detail:', error.detail);
         
-        // Tenta extrair a mensagem de erro de várias formas
-        let errorMsg = 'Erro desconhecido';
-        
-        if (typeof error === 'string') {
-            errorMsg = error;
-        } else if (error?.message) {
+        // Converte o erro de forma segura
+        let errorMsg;
+        if (error instanceof Error) {
             errorMsg = error.message;
-        } else if (error?.detail) {
-            errorMsg = error.detail;
+        } else if (typeof error === 'string') {
+            errorMsg = error;
         } else {
-            try {
-                errorMsg = JSON.stringify(error);
-            } catch {
-                errorMsg = String(error);
-            }
+            errorMsg = JSON.stringify(error, null, 2);
         }
         
-        alert('❌ Erro ao deletar edições: ' + errorMsg);
+        alert('❌ Erro ao deletar edições:\n\n' + errorMsg + '\n\nVeja o console (F12) para mais detalhes.');
     }
 }
 

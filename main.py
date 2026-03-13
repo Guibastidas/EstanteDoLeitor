@@ -809,7 +809,7 @@ async def delete_not_downloaded_issues(series_id: int, db: Session = Depends(get
         deleted_count = db.query(IssueDB).filter(
             IssueDB.series_id == series_id,
             IssueDB.is_downloaded == False
-        ).delete()
+        ).delete(synchronize_session=False)
         
         db.commit()
         return {
