@@ -668,6 +668,23 @@ body.dark-mode .d-btn-purple { color: #c084fc; }
 .i-btn.ib-d { border-color: rgba(220,38,38,.35); color: var(--coral); }
 .i-btn.ib-d:hover { background: rgba(220,38,38,.07); }
 
+/* Range Issue Modal - z-index alto para sobrepor tudo */
+#range-issue-modal {
+  z-index: 10000 !important;
+}
+#range-issue-modal .modal-overlay {
+  z-index: 1;
+}
+#range-issue-modal .modal-content {
+  z-index: 2;
+  position: relative;
+}
+#range-issue-modal input[type="number"],
+#range-issue-modal input[type="checkbox"] {
+  pointer-events: auto !important;
+  z-index: 3;
+}
+
 /* Saga editions box */
 .saga-editions-box {
   background: var(--ink-3); border: 1px solid var(--border-hi);

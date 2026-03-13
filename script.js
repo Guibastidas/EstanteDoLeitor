@@ -1506,6 +1506,7 @@ function openRangeIssueModal() {
 function createRangeIssueModal() {
     const modalHTML = `
         <div id="range-issue-modal" class="modal">
+            <div class="modal-overlay" onclick="closeRangeIssueModal()"></div>
             <div class="modal-content">
                 <div class="modal-header">
                     <h2>📚 Adicionar Intervalo de Edições</h2>
@@ -1513,16 +1514,16 @@ function createRangeIssueModal() {
                 </div>
                 <form id="range-issue-form" onsubmit="submitRangeIssueForm(event)">
                     <div class="form-group">
-                        <label for="start_number">Número Inicial:</label>
-                        <input type="number" id="start_number" name="start_number" min="1" required>
+                        <label for="range_start_number">Número Inicial:</label>
+                        <input type="number" id="range_start_number" name="range_start_number" min="1" required autocomplete="off">
                     </div>
                     <div class="form-group">
-                        <label for="end_number">Número Final:</label>
-                        <input type="number" id="end_number" name="end_number" min="1" required>
+                        <label for="range_end_number">Número Final:</label>
+                        <input type="number" id="range_end_number" name="range_end_number" min="1" required autocomplete="off">
                     </div>
                     <div class="form-group checkbox-group">
-                        <input type="checkbox" id="mark_as_read" name="mark_as_read">
-                        <label for="mark_as_read">Marcar todas como lidas</label>
+                        <input type="checkbox" id="range_mark_as_read" name="range_mark_as_read">
+                        <label for="range_mark_as_read">Marcar todas como lidas</label>
                     </div>
                     <div class="form-actions">
                         <button type="button" class="btn-secondary" onclick="closeRangeIssueModal()">Cancelar</button>
@@ -1548,9 +1549,9 @@ async function submitRangeIssueForm(e) {
         return;
     }
     
-    const startNumber = parseInt(document.getElementById('start_number').value);
-    const endNumber = parseInt(document.getElementById('end_number').value);
-    const markAsRead = document.getElementById('mark_as_read').checked;
+    const startNumber = parseInt(document.getElementById('range_start_number').value);
+    const endNumber = parseInt(document.getElementById('range_end_number').value);
+    const markAsRead = document.getElementById('range_mark_as_read').checked;
     
     if (startNumber > endNumber) {
         alert('Número inicial deve ser menor ou igual ao número final!');
