@@ -605,7 +605,7 @@ function createIssueCard(issue) {
         <div class="issue-badge-number">#${issue.issue_number}</div>
         <div class="issue-badge-icon">${icon}</div>
         ${issue.id ? '<button class="issue-badge-undownload" title="Marcar como não baixada">↩️</button>' : ''}
-        ${issue.id ? '<button class="issue-badge-delete" title="Deletar">×</button>' : ''}
+        <button class="issue-badge-delete" title="Deletar edição">×</button>
     `;
 
     badge.addEventListener('click', (e) => {
@@ -619,11 +619,14 @@ function createIssueCard(issue) {
         if (undownloadBtn) undownloadBtn.addEventListener('click', (e) => {
             e.stopPropagation(); marcarComoNaoBaixada(issue.id, issue.issue_number);
         });
-        const deleteBtn = badge.querySelector('.issue-badge-delete');
-        if (deleteBtn) deleteBtn.addEventListener('click', (e) => {
-            e.stopPropagation(); deleteIssue(issue.id, issue.issue_number);
-        });
     }
+
+    const deleteBtn = badge.querySelector('.issue-badge-delete');
+    if (deleteBtn) deleteBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (issue.id) deleteIssue(issue.id, issue.issue_number);
+        else deletePhantomIssue(issue.issue_number);
+    });
 
     return badge;
 }
@@ -999,10 +1002,39 @@ async function marcarTodasComoNaoBaixadas() {
     try {
         await fetchAPI(`/series/${currentSeriesId}/issues`, { method: 'DELETE' });
         alert('✅ Todas as edições marcadas como não baixadas!');
-        loadSeriesDetail(currentSeriesId);
-        loadSeries();
+        await loadSeriesDetail(currentSeriesId);
+        await loadSeries();
     } catch { alert('Erro ao marcar edições como não baixadas'); }
     finally { button.innerHTML = originalText; button.disabled = false; }
+}
+
+async function deletarTodasEdicoes() {
+    if (!currentSeriesId || !currentSeries) { alert('Erro: Série não identificada'); return; }
+    if (!confirm(
+        `🗑️ APAGAR TUDO\n\nSérie: ${currentSeries.title}\n\n` +
+        `Isso vai deletar TODAS as edições (baixadas, lidas e cinzas) e zerar o total.\n\n` +
+        `Use isso para começar do zero e adicionar um intervalo correto.\n\nConfirmar?`
+    )) return;
+    const btn = event.target;
+    const orig = btn.innerHTML;
+    btn.innerHTML = '⏳ Apagando...'; btn.disabled = true;
+    try {
+        const result = await fetchAPI(`/series/${currentSeriesId}/issues`, { method: 'DELETE' });
+        alert('✅ Todas as edições apagadas! Agora use "+ Intervalo" para adicionar a faixa correta.');
+        await loadSeriesDetail(currentSeriesId);
+        await loadSeries();
+    } catch (e) { alert('Erro ao apagar edições: ' + e.message); }
+    finally { btn.innerHTML = orig; btn.disabled = false; }
+}
+
+async function deletePhantomIssue(issueNumber) {
+    if (!currentSeriesId) return;
+    if (!confirm(`Deletar edição #${issueNumber} (não baixada)?`)) return;
+    try {
+        await fetchAPI(`/series/${currentSeriesId}/issues/phantom/${issueNumber}`, { method: 'DELETE' });
+        await loadSeriesDetail(currentSeriesId);
+        await loadSeries();
+    } catch (e) { alert('Erro ao deletar edição: ' + e.message); }
 }
 
 async function addIssueDownloaded(issueNumber) {

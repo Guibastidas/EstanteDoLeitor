@@ -714,13 +714,43 @@ async def bulk_update_read(series_id: int, data: BulkReadUpdate, db: Session = D
 
 @app.delete("/series/{series_id}/issues")
 async def delete_all_issues(series_id: int, db: Session = Depends(get_db)):
+    """Apaga TODAS as edições do banco E zera total_issues (remove os cinzas do frontend)."""
     try:
         series = db.query(SeriesDB).filter(SeriesDB.id == series_id).first()
         if not series:
             raise HTTPException(status_code=404, detail="Série não encontrada")
         deleted = db.query(IssueDB).filter(IssueDB.series_id == series_id).delete()
+        series.total_issues      = 0
+        series.downloaded_issues = 0
+        series.read_issues       = 0
+        series.date_updated      = datetime.now().isoformat()
         db.commit()
-        return {"message": f"{deleted} edições deletadas"}
+        return {"message": f"{deleted} edicoes deletadas, total zerado"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.delete("/series/{series_id}/issues/phantom/{issue_number}")
+async def delete_phantom_issue(series_id: int, issue_number: int, db: Session = Depends(get_db)):
+    """Deleta edicao fantasma (cinza) — decrementa total_issues. Se existir no banco, remove tambem."""
+    try:
+        series = db.query(SeriesDB).filter(SeriesDB.id == series_id).first()
+        if not series:
+            raise HTTPException(status_code=404, detail="Serie nao encontrada")
+        real = db.query(IssueDB).filter(
+            IssueDB.series_id == series_id,
+            IssueDB.issue_number == issue_number
+        ).first()
+        if real:
+            db.delete(real)
+        if series.total_issues > 0:
+            series.total_issues -= 1
+        series.date_updated = datetime.now().isoformat()
+        db.commit()
+        return {"message": f"Edicao #{issue_number} removida", "new_total": series.total_issues}
     except HTTPException:
         raise
     except Exception as e:
