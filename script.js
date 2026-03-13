@@ -572,7 +572,16 @@ function displayIssues(issues) {
     const issuesMap = {};
     issues.forEach(issue => { issuesMap[issue.issue_number] = issue; });
 
-    for (let i = 1; i <= currentSeries.total_issues; i++) {
+    // Determina o range real: começa no menor número existente no banco
+    // (evita renderizar centenas de fantasmas antes da #957, por exemplo)
+    const issueNumbers = issues.map(i => i.issue_number);
+    const minIssue = issueNumbers.length > 0 ? Math.min(...issueNumbers) : 1;
+    const maxIssue = currentSeries.total_issues || (issueNumbers.length > 0 ? Math.max(...issueNumbers) : 0);
+
+    // Se não há edições e total é 0, não renderiza nada
+    if (maxIssue === 0) return;
+
+    for (let i = minIssue; i <= maxIssue; i++) {
         let issue = issuesMap[i] || {
             id: null, issue_number: i,
             is_read: false, is_downloaded: false,

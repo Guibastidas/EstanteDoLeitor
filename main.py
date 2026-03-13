@@ -684,11 +684,25 @@ async def add_issues_by_range(series_id: int, data: RangeIssueCreate, db: Sessio
                 db.add(new_issue)
                 added_count += 1
         
+        # Atualiza total_issues para refletir o maior número de edição existente
+        # Isso garante que o frontend renderize até o número correto
+        max_issue = db.query(func.max(IssueDB.issue_number)).filter(
+            IssueDB.series_id == series_id
+        ).scalar() or 0
+        total_real = db.query(func.count(IssueDB.id)).filter(
+            IssueDB.series_id == series_id
+        ).scalar() or 0
+
+        series.total_issues      = max_issue
+        series.downloaded_issues = total_real
+        series.date_updated      = datetime.now().isoformat()
+
         db.commit()
         return {
             "message": f"{added_count} edições adicionadas (#{data.start_number} a #{data.end_number})",
             "added_count": added_count,
-            "range": f"{data.start_number}-{data.end_number}"
+            "range": f"{data.start_number}-{data.end_number}",
+            "new_total": max_issue
         }
     except HTTPException:
         raise
