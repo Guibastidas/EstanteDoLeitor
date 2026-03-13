@@ -122,7 +122,15 @@ async function fetchAPI(endpoint, options = {}) {
             try { 
                 const err = await response.json(); 
                 console.log('📋 Erro da API:', err);
-                errorMessage = err.detail || JSON.stringify(err) || errorMessage; 
+                
+                // Se detail é um array, pega o primeiro item ou junta todos
+                if (Array.isArray(err.detail)) {
+                    errorMessage = err.detail.map(e => e.msg || e).join(', ');
+                } else if (err.detail) {
+                    errorMessage = String(err.detail);
+                } else {
+                    errorMessage = JSON.stringify(err);
+                }
             } catch (parseError) {
                 console.error('Erro ao parsear resposta:', parseError);
             }
