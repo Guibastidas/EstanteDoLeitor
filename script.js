@@ -1453,11 +1453,36 @@ async function deletarEdicoesNaoBaixadas() {
             method: 'DELETE'
         });
         
-        alert(`✅ ${result.deleted_count} edições não baixadas foram deletadas!`);
-        await loadSeriesDetail(currentSeriesId);
-        await loadSeries();
+        if (result && typeof result.deleted_count !== 'undefined') {
+            alert(`✅ ${result.deleted_count} edições não baixadas foram deletadas!`);
+            await loadSeriesDetail(currentSeriesId);
+            await loadSeries();
+        } else {
+            alert('✅ Edições deletadas com sucesso!');
+            await loadSeriesDetail(currentSeriesId);
+            await loadSeries();
+        }
     } catch (error) {
-        alert('Erro ao deletar edições: ' + error.message);
+        console.error('❌ Erro ao deletar edições não baixadas:', error);
+        
+        // Tenta extrair a mensagem de erro de várias formas
+        let errorMsg = 'Erro desconhecido';
+        
+        if (typeof error === 'string') {
+            errorMsg = error;
+        } else if (error?.message) {
+            errorMsg = error.message;
+        } else if (error?.detail) {
+            errorMsg = error.detail;
+        } else {
+            try {
+                errorMsg = JSON.stringify(error);
+            } catch {
+                errorMsg = String(error);
+            }
+        }
+        
+        alert('❌ Erro ao deletar edições: ' + errorMsg);
     }
 }
 
