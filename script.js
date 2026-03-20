@@ -12,7 +12,7 @@ let currentSeries = null;
 
 // Paginação
 let currentPage = 1;
-let perPage = 36;
+let perPage = 30;
 let totalPages = 1;
 let totalItems = 0;
 let paginationInfo = null;
