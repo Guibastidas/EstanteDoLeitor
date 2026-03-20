@@ -289,7 +289,7 @@ body.dark-mode .h-btn-primary:hover { box-shadow: 0 4px 14px rgba(244,165,53,.35
    ===================================================== */
 .comics-grid {
   display: grid;
-  grid-template-columns: repeat(6, 1fr);
+  grid-template-columns: repeat(5, 1fr);
   gap: .85rem;
 }
 @media(max-width:1280px){ .comics-grid { grid-template-columns: repeat(5,1fr); } }
